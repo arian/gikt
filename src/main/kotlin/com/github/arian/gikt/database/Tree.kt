@@ -1,6 +1,10 @@
+package com.github.arian.gikt.database
+
+import com.github.arian.gikt.Entry
+import com.github.arian.gikt.Mode
+import com.github.arian.gikt.relativeTo
 import java.nio.charset.Charset
 import java.nio.file.Path
-import kotlin.math.max
 
 private val nullByteArray = ByteArray(1).also { it[0] = 0 }
 

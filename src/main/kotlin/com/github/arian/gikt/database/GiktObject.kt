@@ -1,3 +1,7 @@
+package com.github.arian.gikt.database
+
+import com.github.arian.gikt.sha1
+
 abstract class GiktObject {
     abstract val type: String
     abstract val data: ByteArray

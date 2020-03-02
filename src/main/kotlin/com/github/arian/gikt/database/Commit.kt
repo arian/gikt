@@ -1,3 +1,5 @@
+package com.github.arian.gikt.database
+
 class Commit(
     parent: ObjectId?,
     tree: ObjectId,

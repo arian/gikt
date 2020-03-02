@@ -1,3 +1,7 @@
+package com.github.arian.gikt
+
+import com.github.arian.gikt.database.ObjectId
+import com.github.arian.gikt.database.TreeEntry
 import java.nio.file.Path
 
 enum class Mode(val mode: String) {

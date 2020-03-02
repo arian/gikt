@@ -1,3 +1,5 @@
+package com.github.arian.gikt
+
 import com.google.common.jimfs.Jimfs
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -8,7 +10,7 @@ import kotlin.test.assertTrue
 
 internal class WorkspaceTest {
 
-    lateinit var path: Path
+    private lateinit var path: Path
 
     @BeforeEach
     fun before() {

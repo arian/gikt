@@ -1,3 +1,5 @@
+package com.github.arian.gikt.database
+
 import org.junit.jupiter.api.Test
 import java.time.Clock
 import java.time.Instant

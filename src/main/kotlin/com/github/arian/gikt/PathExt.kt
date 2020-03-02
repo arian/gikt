@@ -1,3 +1,5 @@
+package com.github.arian.gikt
+
 import java.io.OutputStream
 import java.nio.file.FileAlreadyExistsException
 import java.nio.file.Files

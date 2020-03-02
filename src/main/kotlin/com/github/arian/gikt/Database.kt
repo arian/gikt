@@ -1,3 +1,7 @@
+package com.github.arian.gikt
+
+import com.github.arian.gikt.database.GiktObject
+import com.github.arian.gikt.database.ObjectId
 import java.nio.file.Path
 
 private val tempChars = ('a'..'z') + ('A'..'Z') + ('0'..'9')

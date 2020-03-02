@@ -1,3 +1,4 @@
+package com.github.arian.gikt.database
 
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter

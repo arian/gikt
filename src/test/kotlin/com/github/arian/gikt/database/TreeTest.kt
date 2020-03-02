@@ -1,3 +1,6 @@
+package com.github.arian.gikt.database
+
+import com.github.arian.gikt.*
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
@@ -16,8 +19,16 @@ class TreeTest {
         val path = Path.of(".")
 
         val tree = Tree(path).apply {
-            addEntry(parents = null, entry = Entry(Path.of("file1"), oid = oid1))
-            addEntry(parents = null, entry = Entry(Path.of("before"), oid = oid2))
+            addEntry(parents = null, entry = Entry(
+                Path.of("file1"),
+                oid = oid1
+            )
+            )
+            addEntry(parents = null, entry = Entry(
+                Path.of("before"),
+                oid = oid2
+            )
+            )
         }
 
         val expected = ByteArray(0) +
@@ -37,12 +48,20 @@ class TreeTest {
         val b = path.resolve("b")
         val c = path.resolve("b/c.txt")
 
-        val entryC = Entry(c, Mode.REGULAR, oid)
+        val entryC = Entry(
+            c,
+            Mode.REGULAR,
+            oid
+        )
         val treeB = Tree(b, mutableMapOf(
             c.toString() to entryC
-        ));
+        ))
 
-        val entryA = Entry(a, Mode.REGULAR, oid)
+        val entryA = Entry(
+            a,
+            Mode.REGULAR,
+            oid
+        )
 
         val tree = Tree(path, mutableMapOf(
             a.toString() to entryA,
@@ -66,12 +85,20 @@ class TreeTest {
         val b = path.resolve("b")
         val c = path.resolve("b/c.txt")
 
-        val entryC = Entry(c, Mode.REGULAR, oid)
+        val entryC = Entry(
+            c,
+            Mode.REGULAR,
+            oid
+        )
         val treeB = Tree(b, mutableMapOf(
             c.toString() to entryC
-        ));
+        ))
 
-        val entryA = Entry(a, Mode.REGULAR, oid)
+        val entryA = Entry(
+            a,
+            Mode.REGULAR,
+            oid
+        )
 
         val tree = Tree(path, mutableMapOf(
             a.toString() to entryA,
@@ -86,7 +113,7 @@ class TreeTest {
 
     @Nested
     inner class WithRealFs {
-        lateinit var path: Path
+        private lateinit var path: Path
 
         @BeforeEach
         fun before() {

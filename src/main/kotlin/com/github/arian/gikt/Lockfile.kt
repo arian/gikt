@@ -1,12 +1,13 @@
-import java.io.ByteArrayInputStream
+package com.github.arian.gikt
+
 import java.nio.ByteBuffer
 import java.nio.channels.SeekableByteChannel
 import java.nio.file.*
 
 class Lockfile(private val path: Path) {
 
-    val lockPath = path.run {
-        resolveSibling("${fileName.toString()}.lock")
+    val lockPath: Path = path.run {
+        resolveSibling("$fileName.lock")
     }
 
     var lock: SeekableByteChannel? = null

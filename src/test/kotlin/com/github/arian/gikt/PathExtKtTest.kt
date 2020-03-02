@@ -1,3 +1,5 @@
+package com.github.arian.gikt
+
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import java.nio.file.Path

@@ -1,3 +1,5 @@
+package com.github.arian.gikt.database
+
 private val HEX_ARRAY = "0123456789abcdef".toCharArray()
 
 internal fun ByteArray.toHexString(): String {

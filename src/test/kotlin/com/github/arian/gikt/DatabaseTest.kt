@@ -1,3 +1,6 @@
+package com.github.arian.gikt
+
+import com.github.arian.gikt.database.Blob
 import com.google.common.jimfs.Jimfs
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach

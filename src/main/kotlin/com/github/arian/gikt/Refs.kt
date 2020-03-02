@@ -1,3 +1,6 @@
+package com.github.arian.gikt
+
+import com.github.arian.gikt.database.ObjectId
 import java.nio.file.Path
 
 class Refs(pathname: Path) {

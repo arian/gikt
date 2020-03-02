@@ -1,3 +1,9 @@
+package com.github.arian.gikt
+
+import com.github.arian.gikt.database.Author
+import com.github.arian.gikt.database.Blob
+import com.github.arian.gikt.database.Commit
+import com.github.arian.gikt.database.Tree
 import java.io.OutputStream
 import java.nio.file.FileSystems
 import java.nio.file.Path

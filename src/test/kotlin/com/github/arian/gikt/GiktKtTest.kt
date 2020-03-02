@@ -1,16 +1,12 @@
+package com.github.arian.gikt
+
+import com.github.arian.gikt.database.toHexString
 import org.junit.jupiter.api.Test
 import java.io.ByteArrayOutputStream
 import java.util.zip.Inflater
 import kotlin.test.assertEquals
 
 class GiktKtTest {
-
-    @Test
-    fun test() {
-        val rootPath = getPwd()
-
-
-    }
 
     @Test
     fun sha1Test() {
