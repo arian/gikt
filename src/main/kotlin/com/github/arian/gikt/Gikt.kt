@@ -4,6 +4,7 @@ import com.github.arian.gikt.database.Author
 import com.github.arian.gikt.database.Blob
 import com.github.arian.gikt.database.Commit
 import com.github.arian.gikt.database.Tree
+import com.github.arian.gikt.index.Index
 import java.io.OutputStream
 import java.nio.file.FileSystems
 import java.nio.file.Path
@@ -61,11 +62,12 @@ fun main(args: Array<String>) {
 
             val entries = workspace.listFiles().map {
                 val data = workspace.readFile(it)
+                val stat = workspace.statFile(it)
                 val blob = Blob(data)
 
                 database.store(blob)
 
-                Entry(it, it.mode(), blob.oid)
+                Entry(it, stat, blob.oid)
             }
 
             val tree = Tree.build(rootPath, entries)
@@ -89,6 +91,31 @@ fun main(args: Array<String>) {
             val firstLine = message.toString(Charsets.UTF_8).split("\n").getOrNull(0) ?: ""
             val isRoot = parent?.let { "" } ?: "(root-commit) "
             println("[$isRoot${commit.oid.hex} $firstLine")
+        }
+
+        "add" -> {
+            val rootPath = getPwd()
+            val gitPath = rootPath.resolve(".git")
+            val dbPath = gitPath.resolve("objects")
+            val indexPath = gitPath.resolve("index")
+
+            val workspace = Workspace(rootPath)
+            val database = Database(dbPath)
+            val index = Index(rootPath, indexPath)
+
+            val path = rootPath.resolve(args.getOrElse(1) {
+                throw IllegalArgumentException("need to provide a path")
+            })
+
+            val data = workspace.readFile(path)
+            val stat = workspace.statFile(path)
+
+            val blob = Blob(data)
+            database.store(blob)
+            index.add(path, blob.oid, stat)
+
+            index.writeUpdates()
+            exitProcess(0)
         }
 
         else -> {

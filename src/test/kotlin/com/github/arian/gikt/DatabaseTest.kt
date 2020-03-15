@@ -11,7 +11,7 @@ import kotlin.test.assertEquals
 
 class DatabaseTest {
 
-    lateinit var workspace: Path
+    private lateinit var workspace: Path
 
     @BeforeEach
     fun before() {

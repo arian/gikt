@@ -25,4 +25,9 @@ class Workspace(private val rootPath: Path) {
 
     fun readFile(it: Path): ByteArray = it.readBytes()
 
+    fun statFile(it: Path) =
+        FileStat(
+            executable = Files.isExecutable(it)
+        )
+
 }

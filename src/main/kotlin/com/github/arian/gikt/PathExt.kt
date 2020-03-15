@@ -55,8 +55,3 @@ fun Path.makeExecutable(): Path =
         )
     )
 
-fun Path.mode(): Mode = when (Files.isExecutable(this)) {
-    true -> Mode.EXECUTABLE
-    else -> Mode.REGULAR
-}
-

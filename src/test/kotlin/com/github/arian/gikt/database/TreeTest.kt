@@ -11,6 +11,8 @@ import kotlin.test.assertEquals
 
 class TreeTest {
 
+    private val stat = FileStat(executable = false)
+
     @Test
     fun tree() {
         val oid1 = ObjectId(ByteArray(20) { it.toByte() })
@@ -19,15 +21,19 @@ class TreeTest {
         val path = Path.of(".")
 
         val tree = Tree(path).apply {
-            addEntry(parents = null, entry = Entry(
-                Path.of("file1"),
-                oid = oid1
+            addEntry(
+                parents = null, entry = Entry(
+                    Path.of("file1"),
+                    oid = oid1,
+                    stat = stat
+                )
             )
-            )
-            addEntry(parents = null, entry = Entry(
-                Path.of("before"),
-                oid = oid2
-            )
+            addEntry(
+                parents = null, entry = Entry(
+                    Path.of("before"),
+                    oid = oid2,
+                    stat = stat
+                )
             )
         }
 
@@ -49,24 +55,28 @@ class TreeTest {
         val c = path.resolve("b/c.txt")
 
         val entryC = Entry(
-            c,
-            Mode.REGULAR,
-            oid
+            name = c,
+            stat = stat,
+            oid = oid
         )
-        val treeB = Tree(b, mutableMapOf(
-            c.toString() to entryC
-        ))
+        val treeB = Tree(
+            b, mutableMapOf(
+                c.toString() to entryC
+            )
+        )
 
         val entryA = Entry(
-            a,
-            Mode.REGULAR,
-            oid
+            name = a,
+            stat = stat,
+            oid = oid
         )
 
-        val tree = Tree(path, mutableMapOf(
-            a.toString() to entryA,
-            b.toString() to treeB
-        ))
+        val tree = Tree(
+            path, mutableMapOf(
+                a.toString() to entryA,
+                b.toString() to treeB
+            )
+        )
 
         val expected = ByteArray(0) +
             "100644 a.txt".toByteArray() + 0.toByte() + entryA.oid.bytes +
@@ -86,24 +96,28 @@ class TreeTest {
         val c = path.resolve("b/c.txt")
 
         val entryC = Entry(
-            c,
-            Mode.REGULAR,
-            oid
+            name = c,
+            stat = stat,
+            oid = oid
         )
-        val treeB = Tree(b, mutableMapOf(
-            c.toString() to entryC
-        ))
+        val treeB = Tree(
+            b, mutableMapOf(
+                c.toString() to entryC
+            )
+        )
 
         val entryA = Entry(
-            a,
-            Mode.REGULAR,
-            oid
+            name = a,
+            stat = stat,
+            oid = oid
         )
 
-        val tree = Tree(path, mutableMapOf(
-            a.toString() to entryA,
-            b.toString() to treeB
-        ))
+        val tree = Tree(
+            path, mutableMapOf(
+                a.toString() to entryA,
+                b.toString() to treeB
+            )
+        )
 
         val names = mutableListOf<Path>()
         tree.traverse { names.add(it.name) }
@@ -132,7 +146,7 @@ class TreeTest {
             val file = Files.createFile(path.resolve("file.txt")).makeExecutable()
 
             val tree = Tree(path).apply {
-                addEntry(Tree.Parents(), Entry(file, file.mode(), oid))
+                addEntry(Tree.Parents(), Entry(file, FileStat(executable = true), oid))
             }
 
             val expected = ByteArray(0) +
@@ -152,7 +166,7 @@ class TreeTest {
             val workspace = Workspace(path)
 
             val entries = workspace.listFiles().map {
-                Entry(it, it.mode(), ObjectId(ByteArray(20)))
+                Entry(it, workspace.statFile(it), ObjectId(ByteArray(20)))
             }
 
             val tree = Tree.build(path, entries)

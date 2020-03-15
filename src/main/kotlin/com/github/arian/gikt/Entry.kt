@@ -10,8 +10,21 @@ enum class Mode(val mode: String) {
     TREE("40000")
 }
 
-class Entry(
+class Entry private constructor(
     override val name: Path,
     override val mode: Mode = Mode.REGULAR,
     override val oid: ObjectId
-): TreeEntry
+): TreeEntry {
+    constructor(
+        name: Path,
+        stat: FileStat,
+        oid: ObjectId
+    ) : this(
+        name,
+        when (stat.executable) {
+            true -> Mode.EXECUTABLE
+            false -> Mode.REGULAR
+        },
+        oid
+    )
+}
