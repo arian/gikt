@@ -61,13 +61,14 @@ fun main(args: Array<String>) {
             val refs = Refs(gitPath)
 
             val entries = workspace.listFiles().map {
-                val data = workspace.readFile(it)
-                val stat = workspace.statFile(it)
+                val path = rootPath.resolve(it)
+                val data = workspace.readFile(path)
+                val stat = workspace.statFile(path)
                 val blob = Blob(data)
 
                 database.store(blob)
 
-                Entry(it, stat, blob.oid)
+                Entry(path, stat, blob.oid)
             }
 
             val tree = Tree.build(rootPath, entries)
@@ -103,15 +104,20 @@ fun main(args: Array<String>) {
             val database = Database(dbPath)
             val index = Index(rootPath, indexPath)
 
-            args.drop(1).forEach {
-                val path = rootPath.resolve(it)
-                val data = workspace.readFile(path)
-                val stat = workspace.statFile(path)
+            args.drop(1)
+                .flatMap {
+                    val path = rootPath.resolve(it)
+                    workspace.listFiles(path)
+                }
+                .forEach {
+                    val path = rootPath.resolve(it)
+                    val data = workspace.readFile(path)
+                    val stat = workspace.statFile(path)
 
-                val blob = Blob(data)
-                database.store(blob)
-                index.add(path, blob.oid, stat)
-            }
+                    val blob = Blob(data)
+                    database.store(blob)
+                    index.add(path, blob.oid, stat)
+                }
 
             index.writeUpdates()
             exitProcess(0)

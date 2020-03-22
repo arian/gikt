@@ -20,6 +20,7 @@ internal class WorkspaceTest {
     }
 
     @Test
+    @Suppress("UNUSED_VARIABLE")
     fun listFiles() {
         val a = path.resolve("a.txt").touch()
         val b = path.resolve("b.txt").touch()
@@ -28,14 +29,16 @@ internal class WorkspaceTest {
 
         val workspace = Workspace(path)
 
-        val files = workspace.listFiles()
+        val files = workspace.listFiles().map { it.toString() }
 
-        assertEquals(2, files.size)
-        assertTrue(files.contains(a))
-        assertTrue(files.contains(b))
+        assertEquals(
+            listOf("a.txt", "b.txt"),
+            files
+        )
     }
 
     @Test
+    @Suppress("UNUSED_VARIABLE")
     fun listFilesRecursive() {
         path.resolve(".git").mkdirp()
         path.resolve(".git/HEAD").touch()
@@ -47,13 +50,52 @@ internal class WorkspaceTest {
         val d = path.resolve("a/b/c/d.txt").touch()
 
         val workspace = Workspace(path)
-        val files = workspace.listFiles()
+        val files = workspace.listFiles().map { it.toString() }
 
-        assertTrue(files.contains(a))
-        assertTrue(files.contains(b))
-        assertTrue(files.contains(c))
-        assertTrue(files.contains(d))
-        assertEquals(4, files.size)
+        assertEquals(
+            listOf(
+                "a/b/c/d.txt",
+                "a/d.txt",
+                "a.txt",
+                "b.txt"
+            ),
+            files
+        )
+    }
+
+    @Test
+    fun `listFiles with directory as parameter`() {
+        path.resolve(".git").mkdirp()
+        path.resolve(".git/HEAD").touch()
+
+        val a = path.resolve("a.txt").touch()
+        val b = path.resolve("b.txt").touch()
+
+        val workspace = Workspace(path)
+        val files = workspace.listFiles(path.resolve(".")).map { it.toString() }
+
+        assertEquals(
+            listOf("a.txt", "b.txt"),
+            files
+        )
+    }
+
+    @Test
+    fun `listFiles list single file`() {
+        val a = path.resolve("a.txt").touch()
+
+        val workspace = Workspace(path)
+        val files = workspace.listFiles(path.resolve("./a.txt")).map { it.toString() }
+
+        assertEquals(listOf("a.txt"), files)
+    }
+
+    @Test
+    fun `listFiles ignore ignored file`() {
+        val workspace = Workspace(path)
+        val files = workspace.listFiles(path.resolve(".git")).map { it.toString() }
+        assertEquals(emptyList(), files)
     }
 }
+
 
