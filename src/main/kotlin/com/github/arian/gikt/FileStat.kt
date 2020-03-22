@@ -17,8 +17,14 @@ data class FileStat(
 ) {
     companion object {
         fun of(path: Path): FileStat {
-            val attrs = Files.readAttributes(path, "unix:dev,ino,uid,gid")
+            val attrs: Map<String, Any> = try {
+                Files.readAttributes(path, "unix:dev,ino,uid,gid,mode")
+            } catch (e: Exception) {
+                emptyMap()
+            }
+
             val ctime = Files.getLastModifiedTime(path).toInstant()
+            val mode = (attrs["mode"] as? Int) ?: 0
 
             return FileStat(
                 ctime = ctime.epochSecond,
@@ -31,7 +37,8 @@ data class FileStat(
                 uid = attrs["uid"] as? Int ?: 1000,
                 gid = attrs["gid"] as? Int ?: 1000,
                 size = Files.size(path),
-                executable = Files.isExecutable(path)
+                // bitmask all executable bits. 73 is 0111 in octal
+                executable = mode and 73 == 73
             )
         }
     }

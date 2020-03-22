@@ -1,10 +1,10 @@
 package com.github.arian.gikt.index
 
-import com.github.arian.gikt.FileStat
+import com.github.arian.gikt.*
+import com.github.arian.gikt.database.Blob
 import com.github.arian.gikt.database.ObjectId
 import com.github.arian.gikt.database.toHexString
-import com.github.arian.gikt.readBytes
-import com.github.arian.gikt.touch
+import com.google.common.jimfs.Configuration
 import com.google.common.jimfs.Jimfs
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -20,7 +20,7 @@ class IndexTest {
 
     @BeforeEach
     fun before() {
-        val fs = Jimfs.newFileSystem()
+        val fs = Jimfs.newFileSystem(Configuration.unix().toBuilder().setAttributeViews("unix").build())
         workspacePath = fs.getPath("gitk-index")
         Files.createDirectory(workspacePath)
     }
@@ -58,6 +58,35 @@ class IndexTest {
         workspacePath.resolve("index.lock").touch()
         val success = index.writeUpdates()
         assertFalse(success)
+    }
+
+    @Test
+    fun addMultipleFiles() {
+
+        val indexPath = workspacePath.resolve("index")
+        val index = Index(workspacePath, indexPath)
+
+        listOf(
+            "src/entry.kt",
+            "src/index.kt",
+            "src/workspace.kt",
+            "test/entry.kt",
+            "test/index.kt",
+            "test/refs.kt",
+            "test/lockfile.kt"
+        ).forEach {
+            val path = workspacePath.resolve(it)
+            path.parent.mkdirp()
+            path.write(it)
+
+            val stat = path.stat()
+            val data = path.readBytes()
+            val blob = Blob(data)
+            index.add(path, blob.oid, stat)
+        }
+
+        val success = index.writeUpdates()
+        assertTrue(success)
     }
 
 }

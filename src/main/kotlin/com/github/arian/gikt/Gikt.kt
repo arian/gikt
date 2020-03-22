@@ -103,16 +103,15 @@ fun main(args: Array<String>) {
             val database = Database(dbPath)
             val index = Index(rootPath, indexPath)
 
-            val path = rootPath.resolve(args.getOrElse(1) {
-                throw IllegalArgumentException("need to provide a path")
-            })
+            args.drop(1).forEach {
+                val path = rootPath.resolve(it)
+                val data = workspace.readFile(path)
+                val stat = workspace.statFile(path)
 
-            val data = workspace.readFile(path)
-            val stat = workspace.statFile(path)
-
-            val blob = Blob(data)
-            database.store(blob)
-            index.add(path, blob.oid, stat)
+                val blob = Blob(data)
+                database.store(blob)
+                index.add(path, blob.oid, stat)
+            }
 
             index.writeUpdates()
             exitProcess(0)

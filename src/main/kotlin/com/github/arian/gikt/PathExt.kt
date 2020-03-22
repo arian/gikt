@@ -55,3 +55,5 @@ fun Path.makeExecutable(): Path =
         )
     )
 
+fun Path.stat(): FileStat = FileStat.of(this)
+

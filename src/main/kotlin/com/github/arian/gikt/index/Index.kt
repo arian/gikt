@@ -7,6 +7,7 @@ import com.github.arian.gikt.relativeTo
 import java.nio.ByteBuffer
 import java.nio.file.Path
 import java.security.MessageDigest
+import java.util.*
 import kotlin.math.min
 
 private const val MAX_PATH_SIZE = 0xFFF
@@ -37,6 +38,8 @@ class Entry(
     private val pathBytes = path.toString().toByteArray()
     private val flags = min(pathBytes.size, MAX_PATH_SIZE)
 
+    val key: String = path.toString()
+
     val content: ByteArray by lazy {
 
         val bytes = arrayOf(
@@ -66,13 +69,18 @@ class Index(private val workspacePath: Path, pathname: Path) {
 
     private var digest: MessageDigest? = null
     private var entries: Map<String, Entry> = emptyMap()
+    private val keys: SortedSet<String> = sortedSetOf()
     private val lockfile = Lockfile(pathname)
 
     fun add(path: Path, oid: ObjectId, stat: FileStat) {
         val p = path.relativeTo(workspacePath)
         val entry = Entry(p, oid, stat)
-        entries = entries + (p.toString() to entry)
+        entries = entries + (entry.key to entry)
+        keys.add(entry.key)
     }
+
+    private fun forEach(fn: (Entry) -> Unit) =
+        keys.forEach { fn(requireNotNull(entries[it])) }
 
     fun writeUpdates(): Boolean {
         if (!lockfile.holdForUpdate()) {
@@ -84,7 +92,7 @@ class Index(private val workspacePath: Path, pathname: Path) {
         val header = "DIRC".toByteArray() + 2.to32Bit() + entries.size.to32Bit()
         write(header)
 
-        entries.forEach { (_, entry) -> write(entry.content) }
+        forEach { write(it.content) }
 
         finishWrite()
 
