@@ -16,6 +16,20 @@ class ObjectIdKtTest {
     }
 
     @Test
+    fun `equals method`() {
+        val oid1 = ObjectId("ff00ab0000000000000000000000000000000000")
+        val oid2 = ObjectId("ff00ab0000000000000000000000000000000000")
+        assertEquals(oid1, oid2)
+    }
+
+    @Test
+    fun `hash method`() {
+        val oid1 = ObjectId("ff00ab0000000000000000000000000000000000")
+        val oid2 = ObjectId("ff00ab0000000000000000000000000000000000")
+        assertEquals(oid1.hashCode(), oid2.hashCode())
+    }
+
+    @Test
     fun bytesOfHex() {
         val bytes = ObjectId("ff00ab0000000000000000000000000000000000").bytes
         assertEquals(20, bytes.size)

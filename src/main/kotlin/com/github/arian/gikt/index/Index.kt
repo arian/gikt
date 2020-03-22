@@ -4,8 +4,11 @@ import com.github.arian.gikt.FileStat
 import com.github.arian.gikt.Lockfile
 import com.github.arian.gikt.database.ObjectId
 import com.github.arian.gikt.relativeTo
+import java.io.Closeable
 import java.nio.ByteBuffer
+import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.StandardOpenOption
 import java.security.MessageDigest
 import java.util.*
 import kotlin.math.min
@@ -14,8 +17,13 @@ private const val MAX_PATH_SIZE = 0xFFF
 private const val REGULAR_MODE = 33188 // 0100644
 private const val EXECUTABLE_MODE = 33261 // 0100744
 private const val ENTRY_BLOCK = 8
+private const val ENTRY_MIN_SIZE = 64
 
-private fun Int.to32Bit(): ByteArray  =
+private const val CHECKSUM_SIZE = 20
+private const val VERSION = 2
+private const val SIGNATURE = "DIRC"
+
+private fun Int.to32Bit(): ByteArray =
     ByteBuffer.allocate(4).also { it.putInt(this) }.array()
 
 private fun Long.to32Bit(): ByteArray =
@@ -24,21 +32,40 @@ private fun Long.to32Bit(): ByteArray =
 private fun Int.to16Bit(): ByteArray =
     ByteBuffer.allocate(2).also { it.putShort(toShort()) }.array()
 
-class Entry(
-    path: Path,
-    private val oid: ObjectId,
-    private val stat: FileStat
+private fun ByteArray.utf8() = toString(Charsets.UTF_8)
+
+private fun ByteArray.from32Bit(): Int =
+    if (size == 4) {
+        get(0).toInt().and(0xFF).shl(24) +
+            get(1).toInt().and(0xFF).shl(16) +
+            get(2).toInt().and(0xFF).shl(8) +
+            get(3).toInt().and(0xFF)
+    } else {
+        throw IllegalArgumentException("ByteArray should have a size of four to convert to 32 bit int")
+    }
+
+private fun ByteArray.from16Bit(): Short =
+    if (size == 2) {
+        (get(0).toInt().and(0xF).shl(8) + get(1).toInt().and(0xF)).toShort()
+    } else {
+        throw IllegalArgumentException("ByteArray should have a size of one to convert to 16 bit short")
+    }
+
+data class Entry(
+    val key: String,
+    val oid: ObjectId,
+    val stat: FileStat
 ) {
+
+    constructor(path: Path, oid: ObjectId, stat: FileStat) : this(path.toString(), oid, stat)
 
     private val mode = when (stat.executable) {
         true -> EXECUTABLE_MODE
         false -> REGULAR_MODE
     }
 
-    private val pathBytes = path.toString().toByteArray()
+    private val pathBytes = key.toByteArray()
     private val flags = min(pathBytes.size, MAX_PATH_SIZE)
-
-    val key: String = path.toString()
 
     val content: ByteArray by lazy {
 
@@ -55,14 +82,82 @@ class Entry(
             stat.size.to32Bit(),
             oid.bytes,
             flags.to16Bit(),
-            pathBytes
+            pathBytes + ByteArray(1) // terminate path bytes with 0 byte.
         ).reduce(ByteArray::plus)
 
-        val padding = ByteArray(bytes.size % ENTRY_BLOCK)
+        val size = bytes.size
+        val mask = ENTRY_BLOCK - 1
+        val padWith = ((size + mask) and mask.inv()) - size
+        val padding = ByteArray(padWith)
 
         bytes + padding
     }
 
+    companion object {
+        fun parse(bytes: ByteArray): Entry {
+            val ctime = bytes.copyOfRange(0, 4).from32Bit()
+            val ctimeNS = bytes.copyOfRange(4, 8).from32Bit()
+            val mtime = bytes.copyOfRange(8, 12).from32Bit()
+            val mtimeNS = bytes.copyOfRange(12, 16).from32Bit()
+            val dev = bytes.copyOfRange(16, 20).from32Bit()
+            val ino = bytes.copyOfRange(20, 24).from32Bit()
+            val mode = bytes.copyOfRange(24, 28).from32Bit()
+            val uid = bytes.copyOfRange(28, 32).from32Bit()
+            val gid = bytes.copyOfRange(32, 36).from32Bit()
+            val size = bytes.copyOfRange(36, 40).from32Bit()
+            val oidBytes = bytes.copyOfRange(40, 60)
+            val flags = bytes.copyOfRange(60, 62).from16Bit()
+            val pathBytes = bytes.copyOfRange(62, bytes.size - 1)
+
+            val oid = ObjectId(oidBytes)
+            val stat = FileStat(
+                ctime = ctime.toLong(),
+                ctimeNS = ctimeNS,
+                mtime = mtime.toLong(),
+                mtimeNS = mtimeNS,
+                dev = dev.toLong(),
+                ino = ino.toLong(),
+                executable = mode == EXECUTABLE_MODE,
+                uid = uid,
+                gid = gid,
+                size = size.toLong()
+            )
+
+            return Entry(pathBytes.utf8(), oid, stat)
+        }
+    }
+}
+
+class Checksum(val file: Path) : Closeable {
+
+    private val digest = MessageDigest.getInstance("SHA-1")
+    private val inputStream = Files.newInputStream(file, StandardOpenOption.READ)
+
+    fun read(size: Int): ByteArray {
+        val data: ByteArray = inputStream.readNBytes(size)
+
+        if (data.size != size) {
+            throw EndOfFile("Unexpected end-of-file")
+        }
+
+        digest.update(data)
+        return data
+    }
+
+    fun verifyChecksum() {
+        val sum: ByteArray = inputStream.readNBytes(CHECKSUM_SIZE)
+        val hash: ByteArray = digest.digest()
+
+        if (!hash.contentEquals(sum)) {
+            throw IllegalStateException("Checksum does not match value stored on disk")
+        }
+    }
+
+    override fun close() {
+        inputStream.close()
+    }
+
+    class EndOfFile(msg: String) : Exception(msg)
 }
 
 class Index(private val workspacePath: Path, pathname: Path) {
@@ -71,45 +166,105 @@ class Index(private val workspacePath: Path, pathname: Path) {
     private var entries: Map<String, Entry> = emptyMap()
     private val keys: SortedSet<String> = sortedSetOf()
     private val lockfile = Lockfile(pathname)
+    private var changed = false
 
     fun add(path: Path, oid: ObjectId, stat: FileStat) {
         val p = path.relativeTo(workspacePath)
         val entry = Entry(p, oid, stat)
         entries = entries + (entry.key to entry)
         keys.add(entry.key)
+        changed = true
     }
 
     private fun forEach(fn: (Entry) -> Unit) =
         keys.forEach { fn(requireNotNull(entries[it])) }
 
     fun writeUpdates(): Boolean {
-        if (!lockfile.holdForUpdate()) {
-            return false
+        return lockfile.holdForUpdate { lock ->
+            beginWrite()
+
+            val header = SIGNATURE.toByteArray() + VERSION.to32Bit() + entries.size.to32Bit()
+            write(lock, header)
+
+            forEach { write(lock, it.content) }
+
+            finishWrite(lock)
         }
-
-        beginWrite()
-
-        val header = "DIRC".toByteArray() + 2.to32Bit() + entries.size.to32Bit()
-        write(header)
-
-        forEach { write(it.content) }
-
-        finishWrite()
-
-        return true
     }
 
     private fun beginWrite() {
         digest = MessageDigest.getInstance("SHA-1")
     }
 
-    private fun write(data: ByteArray) {
-        lockfile.write(data)
+    private fun write(lock: Lockfile.Ref, data: ByteArray) {
+        lock.write(data)
         requireNotNull(digest).update(data)
     }
 
-    private fun finishWrite() {
-        lockfile.write(requireNotNull(digest).digest())
-        lockfile.commit()
+    private fun finishWrite(lock: Lockfile.Ref) {
+        lock.write(requireNotNull(digest).digest())
     }
+
+    fun loadForUpdate(): Boolean {
+        return lockfile.holdForUpdate {
+            load(it)
+        }
+    }
+
+    private fun load(lock: Lockfile.Ref) {
+        clear()
+        openIndexFile(lock)?.use {
+            val count = readHeader(it)
+            readEntries(it, count)
+            it.verifyChecksum()
+        }
+    }
+
+    private fun clear() {
+        entries = emptyMap()
+        keys.clear()
+        changed = false
+    }
+
+    private fun openIndexFile(lock: Lockfile.Ref): Checksum? {
+        return try {
+            Checksum(lock.path)
+        } catch (e: NoSuchFileException) {
+            null
+        }
+    }
+
+    private fun readHeader(checksum: Checksum): Int {
+
+        val signature = checksum.read(4)
+        if (!signature.contentEquals(SIGNATURE.toByteArray())) {
+            throw IllegalStateException("Signature expected '$SIGNATURE' but found ${signature.utf8()}")
+        }
+
+        val version = checksum.read(4).from32Bit()
+        if (version != VERSION) {
+            throw IllegalStateException("Version expected '$VERSION' but found $version")
+        }
+
+        return checksum.read(4).from32Bit()
+    }
+
+    private fun readEntries(reader: Checksum, count: Int) {
+        repeat(count) {
+            var entry = reader.read(ENTRY_MIN_SIZE)
+
+            while (entry.last() != 0.toByte()) {
+                entry += reader.read(ENTRY_BLOCK)
+            }
+
+            storeEntry(Entry.parse(entry))
+        }
+    }
+
+    private fun storeEntry(entry: Entry) {
+        entries = entries + (entry.key to entry)
+        keys.add(entry.key)
+    }
+
 }
+

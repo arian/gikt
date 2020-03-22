@@ -10,13 +10,14 @@ class Refs(pathname: Path) {
     fun updateHead(oid: ObjectId) {
         val lockfile = Lockfile(headPath)
 
-        if (!lockfile.holdForUpdate()) {
-            throw LockDenied("Could not acquire lock on file: $headPath")
+        val success = lockfile.holdForUpdate {
+            it.write(oid.hex)
+            it.write("\n")
         }
 
-        lockfile.write(oid.hex)
-        lockfile.write("\n")
-        lockfile.commit()
+        if (!success) {
+            throw LockDenied("Could not acquire lock on file: $headPath")
+        }
     }
 
     fun readHead(): ObjectId? =

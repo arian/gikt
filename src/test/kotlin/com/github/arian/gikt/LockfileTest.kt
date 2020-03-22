@@ -25,25 +25,27 @@ internal class LockfileTest {
     fun holdForUpdate() {
         val file = path.resolve("a.txt").touch()
         val lock = Lockfile(file)
-        val success = lock.holdForUpdate()
+        val success = lock.holdForUpdate {
+            assertEquals(path.resolve("a.txt.lock"), lock.lockPath)
+        }
         assertTrue(success)
-        assertEquals(path.resolve("a.txt.lock"), lock.lockPath)
     }
 
     @Test
     fun writeShouldHoldLockFirst() {
         val file = path.resolve("a.txt").touch()
-        val lock = Lockfile(file)
-        assertThrows<Lockfile.StaleLock> { lock.write("hello") }
+        var ref: Lockfile.Ref? = null
+        Lockfile(file).holdForUpdate {
+            ref = it
+        }
+        assertThrows<Lockfile.StaleLock> { ref?.write("hello") }
     }
 
     @Test
     fun holdLockAndWrite() {
         val file = path.resolve("a.txt").touch()
-        Lockfile(file).apply {
-            holdForUpdate()
-            write("hello")
-            commit()
+        Lockfile(file).holdForUpdate {
+            it.write("hello")
         }
         assertEquals("hello", file.readText())
     }

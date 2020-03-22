@@ -61,8 +61,35 @@ class IndexTest {
     }
 
     @Test
-    fun addMultipleFiles() {
+    fun `entry content bytes`() {
 
+        listOf(
+            "src/entry.kt",
+            "src/index.kt",
+            "src/workspace.kt",
+            "test/entry.kt",
+            "test/index.kt",
+            "test/refs.kt",
+            "test/lockfile.kt"
+        ).forEach {
+            val path = workspacePath.resolve(it)
+            path.parent.mkdirp()
+            path.write(it)
+
+            val entry = Entry(
+                path.relativeTo(workspacePath),
+                ObjectId("1234512345123451234512345123451234512345"),
+                FileStat(executable = true)
+            )
+
+            assertEquals(it, entry.key)
+            assertEquals(0, entry.content.size % 8)
+            assertEquals(0.toByte(), entry.content.last())
+        }
+    }
+
+    @Test
+    fun addMultipleFiles() {
         val indexPath = workspacePath.resolve("index")
         val index = Index(workspacePath, indexPath)
 
@@ -87,6 +114,41 @@ class IndexTest {
 
         val success = index.writeUpdates()
         assertTrue(success)
+
+        index.loadForUpdate()
     }
 
+    @Test
+    fun `entry content ends with zero-byte`() {
+        val path = workspacePath.resolve("a")
+
+        val entry = Entry(
+            path.relativeTo(workspacePath),
+            ObjectId("1234512345123451234512345123451234512345"),
+            FileStat(executable = true)
+        )
+
+        val bytes = entry.content
+
+        assertEquals(0, bytes.size % 8)
+        assertEquals(0.toByte(), bytes.last())
+    }
+
+    @Test
+    fun `write and parse entry`() {
+        val path = workspacePath.resolve("a")
+
+        val entry = Entry(
+            path.relativeTo(workspacePath),
+            ObjectId("1234512345123451234512345123451234512345"),
+            FileStat(executable = true)
+        )
+
+        val bytes = entry.content
+
+        val parsed = Entry.parse(bytes)
+
+        assertEquals(entry.key, parsed.key)
+        assertEquals(entry.oid, parsed.oid)
+    }
 }

@@ -1,7 +1,7 @@
 package com.github.arian.gikt
 
-import java.nio.ByteBuffer
-import java.nio.channels.SeekableByteChannel
+import java.io.Closeable
+import java.io.OutputStream
 import java.nio.file.*
 
 class Lockfile(private val path: Path) {
@@ -10,47 +10,55 @@ class Lockfile(private val path: Path) {
         resolveSibling("$fileName.lock")
     }
 
-    var lock: SeekableByteChannel? = null
-
-    fun holdForUpdate(): Boolean {
+    fun holdForUpdate(consumer: (Ref) -> Unit = {}): Boolean {
         return try {
-            if (lock == null) {
-                val flags = arrayOf<OpenOption>(
-                    StandardOpenOption.READ,
-                    StandardOpenOption.WRITE,
-                    StandardOpenOption.CREATE_NEW
-                )
-                lock = Files.newByteChannel(lockPath, *flags)
-            }
+            Ref(this).use(consumer)
             true
         } catch (e: FileAlreadyExistsException) {
             false
-        } catch (e : NoSuchFileException) {
+        } catch (e: NoSuchFileException) {
             throw MissingParent(e.message)
         } catch (e: AccessDeniedException) {
             throw NoPermission(e.message)
         }
     }
 
-    fun write(bytes: String) =
-        write(ByteBuffer.wrap(bytes.toByteArray()))
+    class Ref internal constructor(private val lockfile: Lockfile) : Closeable {
 
-    fun write(bytes: ByteArray) =
-        write(ByteBuffer.wrap(bytes))
+        val path = lockfile.path
+        val lockPath = lockfile.lockPath
 
-    private fun write(byteBuffer: ByteBuffer) =
-        raiseOnStaleLock { write(byteBuffer) }
+        private var stream: OutputStream?
 
-    fun commit() {
-        raiseOnStaleLock {
-            close()
-            Files.move(lockPath, path, StandardCopyOption.REPLACE_EXISTING)
-            lock = null
+        init {
+            val flags = arrayOf<OpenOption>(
+                StandardOpenOption.WRITE,
+                StandardOpenOption.CREATE_NEW
+            )
+            stream = Files.newOutputStream(lockfile.lockPath, *flags)
         }
-    }
 
-    private fun raiseOnStaleLock(withBytes: SeekableByteChannel.() -> Unit) {
-        lock?.withBytes() ?: throw StaleLock("Not holding lock on file $lockPath")
+        override fun close() {
+            commit()
+        }
+
+        fun write(bytes: String) =
+            this.write(bytes.toByteArray())
+
+        fun write(bytes: ByteArray) =
+            raiseOnStaleLock { it.write(bytes) }
+
+        private fun commit() {
+            raiseOnStaleLock {
+                it.close()
+                Files.move(lockfile.lockPath, lockfile.path, StandardCopyOption.REPLACE_EXISTING)
+                stream = null
+            }
+        }
+
+        private fun raiseOnStaleLock(withBytes: (OutputStream) -> Unit) {
+            stream?.let { withBytes(it) } ?: throw StaleLock("Not holding lock on file ${lockfile.lockPath}")
+        }
     }
 
     class MissingParent(m: String?) : Exception(m)

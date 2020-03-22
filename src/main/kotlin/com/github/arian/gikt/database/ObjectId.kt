@@ -14,10 +14,18 @@ internal fun String.hexToByteArray() =
         ((Character.digit(this[it * 2], 16) shl 4) + Character.digit(this[it * 2 + 1], 16)).toByte()
     }
 
-class ObjectId(val bytes: ByteArray) {
+data class ObjectId(val bytes: ByteArray) {
     constructor(bytes: String) : this(bytes.hexToByteArray())
 
     val hex: String get() = bytes.toHexString()
 
     override fun toString() = hex
+
+    override fun equals(other: Any?) =
+        when (other) {
+            is ObjectId -> bytes.contentEquals(other.bytes)
+            else -> false
+        }
+
+    override fun hashCode(): Int = bytes.contentHashCode()
 }
