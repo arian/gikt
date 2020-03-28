@@ -103,22 +103,27 @@ fun main(args: Array<String>) {
             val database = Database(dbPath)
             val index = Index(rootPath, indexPath)
 
-            args.drop(1)
-                .flatMap {
-                    val path = rootPath.resolve(it)
-                    workspace.listFiles(path)
-                }
-                .forEach {
-                    val path = rootPath.resolve(it)
-                    val data = workspace.readFile(path)
-                    val stat = workspace.statFile(path)
+            index.loadForUpdate { lock ->
 
-                    val blob = Blob(data)
-                    database.store(blob)
-                    index.add(path, blob.oid, stat)
-                }
+                args.drop(1)
+                    .flatMap {
+                        val path = rootPath.resolve(it)
+                        workspace.listFiles(path)
+                    }
+                    .forEach {
+                        val path = rootPath.resolve(it)
+                        val data = workspace.readFile(path)
+                        val stat = workspace.statFile(path)
 
-            index.writeUpdates()
+                        val blob = Blob(data)
+                        database.store(blob)
+                        index.add(path, blob.oid, stat)
+                    }
+
+                index.writeUpdates(lock)
+
+            }
+
             exitProcess(0)
         }
 

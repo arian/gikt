@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -46,6 +47,7 @@ internal class LockfileTest {
         val file = path.resolve("a.txt").touch()
         Lockfile(file).holdForUpdate {
             it.write("hello")
+            it.commit()
         }
         assertEquals("hello", file.readText())
     }
@@ -58,10 +60,59 @@ internal class LockfileTest {
     }
 
     @Test
+    fun `cannot commit twice`() {
+        val file = path.resolve("a.txt").touch()
+        Lockfile(file).holdForUpdate {
+            it.write("hello")
+            it.commit()
+            assertThrows<Lockfile.StaleLock> { it.commit() }
+        }
+    }
+
+    @Test
+    fun `rollback should ignore the written values`() {
+        val file = path.resolve("a.txt").touch()
+        Lockfile(file).holdForUpdate {
+            it.write("hello")
+            it.rollback()
+        }
+        assertEquals("", file.readText())
+    }
+
+    @Test
+    fun `rollback after commit should throw`() {
+        val file = path.resolve("a.txt").touch()
+        Lockfile(file).holdForUpdate {
+            it.write("hello")
+            it.commit()
+            assertThrows<Lockfile.StaleLock> { it.rollback() }
+        }
+    }
+
+    @Test
     fun `already exists`() {
         val file = path.resolve("a.txt").touch()
         path.resolve("a.txt.lock").touch()
         val lock = Lockfile(file)
         assertFalse(lock.holdForUpdate())
+    }
+
+    @Test
+    fun `nested lock should not be called`() {
+        val file = path.resolve("a.txt").touch()
+        val lock = Lockfile(file)
+
+        val one = AtomicBoolean(false)
+        val two = AtomicBoolean(false)
+
+        lock.holdForUpdate {
+            one.set(true)
+            lock.holdForUpdate {
+                two.set(true)
+            }
+        }
+
+        assertTrue(one.get())
+        assertFalse(two.get())
     }
 }

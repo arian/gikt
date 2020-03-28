@@ -26,6 +26,8 @@ fun Path.readText(): String = Files.newBufferedReader(this).readText()
 
 fun Path.write(text: String): Path = Files.writeString(this, text)
 
+fun Path.write(text: ByteArray): Path = Files.write(this, text)
+
 fun Path.exists(): Boolean = Files.exists(this)
 
 fun Path.mkdirp(): Path = Files.createDirectories(this)
@@ -33,6 +35,8 @@ fun Path.mkdirp(): Path = Files.createDirectories(this)
 fun Path.outputStream(): OutputStream = Files.newOutputStream(this)
 
 fun Path.renameTo(to: Path): Path = Files.move(this, to)
+
+fun Path.delete(): Unit = Files.delete(this)
 
 fun Path.deleteRecursively(): Unit = Files.walk(this)
     .sorted(Comparator.reverseOrder())

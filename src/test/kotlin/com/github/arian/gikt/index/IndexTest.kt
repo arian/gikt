@@ -10,6 +10,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -31,14 +32,21 @@ class IndexTest {
         val index = Index(workspacePath, indexPath)
         val path = workspacePath.resolve("a.txt").touch()
 
-        index.add(
-            path,
-            ObjectId("1234512345123451234512345123451234512345"),
-            FileStat(executable = false)
-        )
+        val called = AtomicBoolean(false)
 
-        val success = index.writeUpdates()
-        assertTrue(success)
+        index.loadForUpdate { lock ->
+            called.set(true)
+
+            index.add(
+                path,
+                ObjectId("1234512345123451234512345123451234512345"),
+                FileStat(executable = false)
+            )
+
+            index.writeUpdates(lock)
+        }
+
+        assertTrue(called.get())
 
         val result = indexPath.readBytes()
         val resultString = result.toString(Charsets.UTF_8)
@@ -56,8 +64,14 @@ class IndexTest {
     fun `return false when index is locked`() {
         val index = Index(workspacePath, workspacePath.resolve("index"))
         workspacePath.resolve("index.lock").touch()
-        val success = index.writeUpdates()
-        assertFalse(success)
+
+        val called = AtomicBoolean(false)
+
+        index.loadForUpdate {
+            called.set(true)
+        }
+
+        assertFalse(called.get())
     }
 
     @Test
@@ -93,29 +107,37 @@ class IndexTest {
         val indexPath = workspacePath.resolve("index")
         val index = Index(workspacePath, indexPath)
 
-        listOf(
-            "src/entry.kt",
-            "src/index.kt",
-            "src/workspace.kt",
-            "test/entry.kt",
-            "test/index.kt",
-            "test/refs.kt",
-            "test/lockfile.kt"
-        ).forEach {
-            val path = workspacePath.resolve(it)
-            path.parent.mkdirp()
-            path.write(it)
+        index.loadForUpdate { lock ->
 
-            val stat = path.stat()
-            val data = path.readBytes()
-            val blob = Blob(data)
-            index.add(path, blob.oid, stat)
+            listOf(
+                "src/entry.kt",
+                "src/index.kt",
+                "src/workspace.kt",
+                "test/entry.kt",
+                "test/index.kt",
+                "test/refs.kt",
+                "test/lockfile.kt"
+            ).forEach {
+                val path = workspacePath.resolve(it)
+                path.parent.mkdirp()
+                path.write(it)
+
+                val stat = path.stat()
+                val data = path.readBytes()
+                val blob = Blob(data)
+                index.add(path, blob.oid, stat)
+            }
+
+            index.writeUpdates(lock)
         }
 
-        val success = index.writeUpdates()
-        assertTrue(success)
+        val called = AtomicBoolean(false)
 
-        index.loadForUpdate()
+        index.loadForUpdate {
+            called.set(true)
+        }
+
+        assertTrue(called.get())
     }
 
     @Test

@@ -7,6 +7,7 @@ import com.github.arian.gikt.relativeTo
 import java.io.Closeable
 import java.nio.ByteBuffer
 import java.nio.file.Files
+import java.nio.file.NoSuchFileException
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
 import java.security.MessageDigest
@@ -106,6 +107,7 @@ data class Entry(
             val gid = bytes.copyOfRange(32, 36).from32Bit()
             val size = bytes.copyOfRange(36, 40).from32Bit()
             val oidBytes = bytes.copyOfRange(40, 60)
+            @Suppress("UNUSED_VARIABLE")
             val flags = bytes.copyOfRange(60, 62).from16Bit()
             val pathBytes = bytes.copyOfRange(62, bytes.size - 1)
 
@@ -132,6 +134,7 @@ class Checksum(val file: Path) : Closeable {
 
     private val digest = MessageDigest.getInstance("SHA-1")
     private val inputStream = Files.newInputStream(file, StandardOpenOption.READ)
+    private val outputStream = Files.newOutputStream(file, StandardOpenOption.WRITE)
 
     fun read(size: Int): ByteArray {
         val data: ByteArray = inputStream.readNBytes(size)
@@ -153,6 +156,15 @@ class Checksum(val file: Path) : Closeable {
         }
     }
 
+    fun write(data: ByteArray) {
+        outputStream.write(data)
+        digest.update(data)
+    }
+
+    fun writeChecksum() {
+        outputStream.write(digest.digest())
+    }
+
     override fun close() {
         inputStream.close()
     }
@@ -162,7 +174,6 @@ class Checksum(val file: Path) : Closeable {
 
 class Index(private val workspacePath: Path, pathname: Path) {
 
-    private var digest: MessageDigest? = null
     private var entries: Map<String, Entry> = emptyMap()
     private val keys: SortedSet<String> = sortedSetOf()
     private val lockfile = Lockfile(pathname)
@@ -171,43 +182,35 @@ class Index(private val workspacePath: Path, pathname: Path) {
     fun add(path: Path, oid: ObjectId, stat: FileStat) {
         val p = path.relativeTo(workspacePath)
         val entry = Entry(p, oid, stat)
-        entries = entries + (entry.key to entry)
-        keys.add(entry.key)
+        storeEntry(entry)
         changed = true
     }
 
     private fun forEach(fn: (Entry) -> Unit) =
         keys.forEach { fn(requireNotNull(entries[it])) }
 
-    fun writeUpdates(): Boolean {
-        return lockfile.holdForUpdate { lock ->
-            beginWrite()
-
-            val header = SIGNATURE.toByteArray() + VERSION.to32Bit() + entries.size.to32Bit()
-            write(lock, header)
-
-            forEach { write(lock, it.content) }
-
-            finishWrite(lock)
+    fun writeUpdates(lock: Lockfile.Ref) {
+        if (!changed) {
+            lock.rollback()
+            return
         }
+
+        val writer = Checksum(lock.lockPath)
+
+        val header = SIGNATURE.toByteArray() + VERSION.to32Bit() + entries.size.to32Bit()
+        writer.write(header)
+
+        forEach { writer.write(it.content) }
+
+        writer.writeChecksum()
+
+        lock.commit()
     }
 
-    private fun beginWrite() {
-        digest = MessageDigest.getInstance("SHA-1")
-    }
-
-    private fun write(lock: Lockfile.Ref, data: ByteArray) {
-        lock.write(data)
-        requireNotNull(digest).update(data)
-    }
-
-    private fun finishWrite(lock: Lockfile.Ref) {
-        lock.write(requireNotNull(digest).digest())
-    }
-
-    fun loadForUpdate(): Boolean {
-        return lockfile.holdForUpdate {
+    fun loadForUpdate(action: (Lockfile.Ref) -> Unit) {
+        lockfile.holdForUpdate {
             load(it)
+            action(it)
         }
     }
 

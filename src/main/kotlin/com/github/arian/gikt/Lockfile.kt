@@ -11,16 +11,18 @@ class Lockfile(private val path: Path) {
     }
 
     fun holdForUpdate(consumer: (Ref) -> Unit = {}): Boolean {
-        return try {
-            Ref(this).use(consumer)
-            true
+        val ref = try {
+            Ref(this)
         } catch (e: FileAlreadyExistsException) {
-            false
+            null
         } catch (e: NoSuchFileException) {
             throw MissingParent(e.message)
         } catch (e: AccessDeniedException) {
             throw NoPermission(e.message)
         }
+
+        ref?.use(consumer)
+        return ref != null
     }
 
     class Ref internal constructor(private val lockfile: Lockfile) : Closeable {
@@ -29,17 +31,19 @@ class Lockfile(private val path: Path) {
         val lockPath = lockfile.lockPath
 
         private var stream: OutputStream?
+        private var done = false
 
         init {
             val flags = arrayOf<OpenOption>(
                 StandardOpenOption.WRITE,
                 StandardOpenOption.CREATE_NEW
             )
-            stream = Files.newOutputStream(lockfile.lockPath, *flags)
+            stream = Files.newOutputStream(lockPath, *flags)
         }
 
         override fun close() {
-            commit()
+            stream?.close()
+            stream = null
         }
 
         fun write(bytes: String) =
@@ -48,16 +52,29 @@ class Lockfile(private val path: Path) {
         fun write(bytes: ByteArray) =
             raiseOnStaleLock { it.write(bytes) }
 
-        private fun commit() {
+        fun rollback() {
             raiseOnStaleLock {
-                it.close()
+                lockPath.delete()
+                done = true
+            }
+        }
+
+        fun commit() {
+            raiseOnStaleLock {
                 Files.move(lockfile.lockPath, lockfile.path, StandardCopyOption.REPLACE_EXISTING)
-                stream = null
+                done = true
             }
         }
 
         private fun raiseOnStaleLock(withBytes: (OutputStream) -> Unit) {
-            stream?.let { withBytes(it) } ?: throw StaleLock("Not holding lock on file ${lockfile.lockPath}")
+            if (done) {
+                stale()
+            }
+            stream?.let { withBytes(it) } ?: stale()
+        }
+
+        private fun stale() {
+            throw StaleLock("Not holding lock on file ${lockfile.lockPath}")
         }
     }
 
