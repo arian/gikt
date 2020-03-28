@@ -42,10 +42,10 @@ class Tree(
 
     fun addEntry(parents: Parents?, entry: TreeEntry) {
         if (parents == null || parents.isEmpty()) {
-            entries[entry.name.toAbsolutePath().toString()] = entry
+            entries[entry.name.relativeTo(name).toString()] = entry
         } else {
             val dirname = name.resolve(parents.first())
-            val dirString = dirname.toAbsolutePath().toString()
+            val dirString = dirname.relativeTo(name).toString()
             val tree = entries.getOrElse(dirString) { Tree(dirname) }
             if (tree is Tree) {
                 tree.addEntry(parents.tail(), entry)
@@ -59,26 +59,28 @@ class Tree(
         fn(this)
     }
 
-    fun list() : List<String> =
+    fun list(): List<String> =
         entries
             .values
             .sortedBy { it.name }
             .map { it.name.relativeTo(name).toString() }
 
-    operator fun get(key: String): TreeEntry? = entries[name.resolve(key).toAbsolutePath().toString()]
+    operator fun get(key: String): TreeEntry? = entries[name.resolve(key).relativeTo(name).toString()]
 
-    fun getTree(key: String): Tree? = entries[name.resolve(key).toAbsolutePath().toString()] as? Tree
+    fun getTree(key: String): Tree? = entries[name.resolve(key).relativeTo(name).toString()] as? Tree
 
     companion object {
         fun build(path: Path, paths: List<Entry>): Tree {
 
             val entries = paths.sortedBy { it.name.toString() }
-            val root = Tree(path)
+            val root = Tree(path.relativeTo(path))
 
             entries
                 .forEach { e ->
                     val p = e.name
-                    val r = p.relativeTo(path)
+                    val r =
+                        if (p.isAbsolute) p.relativeTo(path)
+                        else p
                     val names = (0 until r.nameCount).map { r.getName(it) }
                     val parents = names.dropLast(1)
                     root.addEntry(Parents(parents), e)

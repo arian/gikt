@@ -176,7 +176,7 @@ class TreeTest {
             assertEquals(listOf("c", "c.txt"), tree.getTree("a")?.getTree("b")?.list())
 
             val names = mutableListOf<String>()
-            tree.traverse { names.add(it.name.relativeTo(path).toString()) }
+            tree.traverse { names.add(it.name.toString()) }
 
             assertEquals(
                 listOf("a/b/c", "a/b", "a", ""),

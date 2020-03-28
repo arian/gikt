@@ -61,14 +61,13 @@ fun main(args: Array<String>) {
             val refs = Refs(gitPath)
 
             val entries = workspace.listFiles().map {
-                val path = rootPath.resolve(it)
-                val data = workspace.readFile(path)
-                val stat = workspace.statFile(path)
+                val data = workspace.readFile(it)
+                val stat = workspace.statFile(it)
                 val blob = Blob(data)
 
                 database.store(blob)
 
-                Entry(path, stat, blob.oid)
+                Entry(it, stat, blob.oid)
             }
 
             val tree = Tree.build(rootPath, entries)

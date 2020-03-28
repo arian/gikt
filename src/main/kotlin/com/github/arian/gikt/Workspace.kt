@@ -28,8 +28,9 @@ class Workspace(private val rootPath: Path) {
         }
     }
 
-    fun readFile(it: Path): ByteArray = it.readBytes()
+    fun readFile(it: Path): ByteArray = absolutePath(it).readBytes()
 
-    fun statFile(it: Path): FileStat = it.stat()
+    fun statFile(it: Path): FileStat = absolutePath(it).stat()
 
+    fun absolutePath(it: Path): Path = rootPath.resolve(it)
 }
