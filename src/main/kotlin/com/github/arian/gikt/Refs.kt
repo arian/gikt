@@ -13,6 +13,7 @@ class Refs(pathname: Path) {
         val success = lockfile.holdForUpdate {
             it.write(oid.hex)
             it.write("\n")
+            it.commit()
         }
 
         if (!success) {

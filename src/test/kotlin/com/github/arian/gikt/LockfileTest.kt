@@ -1,15 +1,13 @@
 package com.github.arian.gikt
 
 import com.google.common.jimfs.Jimfs
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 
 internal class LockfileTest {
 
@@ -28,6 +26,7 @@ internal class LockfileTest {
         val lock = Lockfile(file)
         val success = lock.holdForUpdate {
             assertEquals(path.resolve("a.txt.lock"), lock.lockPath)
+            it.rollback()
         }
         assertTrue(success)
     }
@@ -38,6 +37,7 @@ internal class LockfileTest {
         var ref: Lockfile.Ref? = null
         Lockfile(file).holdForUpdate {
             ref = it
+            it.rollback()
         }
         assertThrows<Lockfile.StaleLock> { ref?.write("hello") }
     }
@@ -110,6 +110,7 @@ internal class LockfileTest {
             lock.holdForUpdate {
                 two.set(true)
             }
+            it.rollback()
         }
 
         assertTrue(one.get())

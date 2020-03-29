@@ -1,12 +1,11 @@
 package com.github.arian.gikt
 
 import com.google.common.jimfs.Jimfs
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.nio.file.Files
 import java.nio.file.Path
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 internal class WorkspaceTest {
 
@@ -64,6 +63,7 @@ internal class WorkspaceTest {
     }
 
     @Test
+    @Suppress("UNUSED_VARIABLE")
     fun `listFiles with directory as parameter`() {
         path.resolve(".git").mkdirp()
         path.resolve(".git/HEAD").touch()
@@ -81,6 +81,7 @@ internal class WorkspaceTest {
     }
 
     @Test
+    @Suppress("UNUSED_VARIABLE")
     fun `listFiles list single file`() {
         val a = path.resolve("a.txt").touch()
 
@@ -94,7 +95,7 @@ internal class WorkspaceTest {
     fun `listFiles ignore ignored file`() {
         val workspace = Workspace(path)
         val files = workspace.listFiles(path.resolve(".git")).map { it.toString() }
-        assertEquals(emptyList(), files)
+        assertEquals(emptyList<String>(), files)
     }
 }
 

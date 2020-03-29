@@ -72,7 +72,10 @@ fun main(args: Array<String>) {
 
             val tree = Tree.build(rootPath, entries)
 
-            tree.traverse { database.store(it) }
+            tree.traverse {
+                println(it.name)
+                database.store(it)
+            }
 
             val parent = refs.readHead()
             val name = System.getenv("GIT_AUTHOR_NAME") ?: error("please set GIT_AUTHOR_NAME")
@@ -85,8 +88,11 @@ fun main(args: Array<String>) {
             val message: ByteArray = System.`in`.readAllBytes()
 
             val commit = Commit(parent, tree.oid, author, message)
+            println(commit)
             database.store(commit)
+            println("stored $database")
             refs.updateHead(commit.oid)
+            println("head ${commit.oid}")
 
             val firstLine = message.toString(Charsets.UTF_8).split("\n").getOrNull(0) ?: ""
             val isRoot = parent?.let { "" } ?: "(root-commit) "
@@ -125,6 +131,28 @@ fun main(args: Array<String>) {
             }
 
             exitProcess(0)
+        }
+
+        "hello" -> {
+            println("gikt: hello")
+        }
+
+        "ls" -> {
+            val rootPath = getPwd()
+            val workspace = Workspace(rootPath)
+            workspace.listFiles().forEach { println(it) }
+        }
+
+        "ls-files" -> {
+            val rootPath = getPwd()
+            val gitPath = rootPath.resolve(".git")
+            val indexPath = gitPath.resolve("index")
+            val index = Index(rootPath, indexPath)
+
+            index.loadForUpdate { lock ->
+                index.forEach { println(it.key) }
+                lock.rollback()
+            }
         }
 
         else -> {

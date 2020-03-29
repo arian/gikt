@@ -3,18 +3,14 @@ package com.github.arian.gikt
 import com.google.common.jimfs.Configuration
 import com.google.common.jimfs.Jimfs
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.attribute.FileTime
-import java.nio.file.attribute.PosixFileAttributes
 import java.time.Duration
 import java.time.Instant
-import java.util.concurrent.TimeUnit
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 
 class FileStatTest{
 

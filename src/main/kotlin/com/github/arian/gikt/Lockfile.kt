@@ -21,7 +21,12 @@ class Lockfile(private val path: Path) {
             throw NoPermission(e.message)
         }
 
-        ref?.use(consumer)
+        ref?.use {
+            consumer(it)
+            if (!it.done) {
+                throw StaleLock("Neither `commit` or `rollback` called with open lock")
+            }
+        }
         return ref != null
     }
 
@@ -31,7 +36,7 @@ class Lockfile(private val path: Path) {
         val lockPath = lockfile.lockPath
 
         private var stream: OutputStream?
-        private var done = false
+        internal var done = false
 
         init {
             val flags = arrayOf<OpenOption>(

@@ -7,12 +7,12 @@ import java.nio.file.Path
 import java.nio.file.attribute.FileTime
 import java.nio.file.attribute.PosixFilePermission
 import java.time.Instant
-import kotlin.streams.toList
+import java.util.stream.Collectors
 
 /**
  * The entries in the directory.
  */
-fun Path.listFiles() = Files.list(this).toList()
+fun Path.listFiles(): List<Path> = Files.list(this).collect(Collectors.toList())
 
 /**
  * For example: `Path.of("/abc/123/xyz").relativeTo(Path.of("/abc"))`

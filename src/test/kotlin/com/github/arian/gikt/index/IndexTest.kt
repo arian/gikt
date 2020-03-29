@@ -6,14 +6,12 @@ import com.github.arian.gikt.database.ObjectId
 import com.github.arian.gikt.database.toHexString
 import com.google.common.jimfs.Configuration
 import com.google.common.jimfs.Jimfs
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 
 class IndexTest {
 
@@ -135,6 +133,7 @@ class IndexTest {
 
         index.loadForUpdate {
             called.set(true)
+            it.rollback()
         }
 
         assertTrue(called.get())

@@ -186,7 +186,7 @@ class Index(private val workspacePath: Path, pathname: Path) {
         changed = true
     }
 
-    private fun forEach(fn: (Entry) -> Unit) =
+    fun forEach(fn: (Entry) -> Unit) =
         keys.forEach { fn(requireNotNull(entries[it])) }
 
     fun writeUpdates(lock: Lockfile.Ref) {
