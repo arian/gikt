@@ -47,7 +47,7 @@ private fun ByteArray.from32Bit(): Int =
 
 private fun ByteArray.from16Bit(): Short =
     if (size == 2) {
-        (get(0).toInt().and(0xF).shl(8) + get(1).toInt().and(0xF)).toShort()
+        (get(0).toInt().and(0xFF).shl(8) + get(1).toInt().and(0xFF)).toShort()
     } else {
         throw IllegalArgumentException("ByteArray should have a size of one to convert to 16 bit short")
     }
@@ -107,9 +107,9 @@ data class Entry(
             val gid = bytes.copyOfRange(32, 36).from32Bit()
             val size = bytes.copyOfRange(36, 40).from32Bit()
             val oidBytes = bytes.copyOfRange(40, 60)
-            @Suppress("UNUSED_VARIABLE")
+
             val flags = bytes.copyOfRange(60, 62).from16Bit()
-            val pathBytes = bytes.copyOfRange(62, bytes.size - 1)
+            val pathBytes = bytes.copyOfRange(62, 62 + flags)
 
             val oid = ObjectId(oidBytes)
             val stat = FileStat(
@@ -172,7 +172,7 @@ class Checksum(val file: Path) : Closeable {
     class EndOfFile(msg: String) : Exception(msg)
 }
 
-class Index(private val workspacePath: Path, pathname: Path) {
+class Index(private val workspacePath: Path, val pathname: Path) {
 
     private var entries: Map<String, Entry> = emptyMap()
     private val keys: SortedSet<String> = sortedSetOf()
@@ -186,8 +186,11 @@ class Index(private val workspacePath: Path, pathname: Path) {
         changed = true
     }
 
-    fun forEach(fn: (Entry) -> Unit) =
-        keys.forEach { fn(requireNotNull(entries[it])) }
+    private fun toList(): List<Entry> =
+        keys.map { requireNotNull(entries[it]) }.toList()
+
+    private fun forEach(fn: (Entry) -> Unit) =
+        toList().forEach(fn)
 
     fun writeUpdates(lock: Lockfile.Ref) {
         if (!changed) {
@@ -209,12 +212,22 @@ class Index(private val workspacePath: Path, pathname: Path) {
 
     fun loadForUpdate(action: (Lockfile.Ref) -> Unit) {
         lockfile.holdForUpdate {
-            load(it)
+            load(it.path)
             action(it)
         }
     }
 
-    private fun load(lock: Lockfile.Ref) {
+    class Loaded internal constructor(private val index: Index) {
+        fun forEach(fn: (Entry) -> Unit) = index.forEach(fn)
+        fun toList() = index.toList()
+    }
+
+    fun load(): Loaded {
+        load(pathname)
+        return Loaded(this)
+    }
+
+    private fun load(lock: Path) {
         clear()
         openIndexFile(lock)?.use {
             val count = readHeader(it)
@@ -229,9 +242,9 @@ class Index(private val workspacePath: Path, pathname: Path) {
         changed = false
     }
 
-    private fun openIndexFile(lock: Lockfile.Ref): Checksum? {
+    private fun openIndexFile(path: Path): Checksum? {
         return try {
-            Checksum(lock.path)
+            Checksum(path)
         } catch (e: NoSuchFileException) {
             null
         }
@@ -268,6 +281,5 @@ class Index(private val workspacePath: Path, pathname: Path) {
         entries = entries + (entry.key to entry)
         keys.add(entry.key)
     }
-
 }
 

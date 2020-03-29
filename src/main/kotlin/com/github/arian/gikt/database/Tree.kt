@@ -26,6 +26,9 @@ class Tree(
     override val type = "tree"
     override val mode = Mode.TREE
     override val data: ByteArray by lazy {
+        if (entries.values.isEmpty()) {
+            return@lazy ByteArray(0)
+        }
         entries
             .values
             .sortedBy { it.name }
@@ -71,22 +74,10 @@ class Tree(
 
     companion object {
         fun build(path: Path, paths: List<Entry>): Tree {
-
             val entries = paths.sortedBy { it.name.toString() }
-            val root = Tree(path.relativeTo(path))
-
-            entries
-                .forEach { e ->
-                    val p = e.name
-                    val r =
-                        if (p.isAbsolute) p.relativeTo(path)
-                        else p
-                    val names = (0 until r.nameCount).map { r.getName(it) }
-                    val parents = names.dropLast(1)
-                    root.addEntry(Parents(parents), e)
-                }
-
-            return root
+            return Tree(path.relativeTo(path)).apply {
+                entries.forEach { addEntry(Parents(it.parents), it) }
+            }
         }
     }
 

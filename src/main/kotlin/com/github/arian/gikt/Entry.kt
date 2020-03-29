@@ -14,13 +14,23 @@ class Entry private constructor(
     override val name: Path,
     override val mode: Mode = Mode.REGULAR,
     override val oid: ObjectId
-): TreeEntry {
+) : TreeEntry {
+    val parents: List<Path>
+        get() {
+            val names = (0 until name.nameCount).map { name.getName(it) }
+            return names.dropLast(1)
+        }
+
     constructor(
         name: Path,
         stat: FileStat,
         oid: ObjectId
     ) : this(
-        name,
+        name.also {
+            if (name.isAbsolute) {
+                throw IllegalArgumentException("The path must not be absolute, but relative to the workspace path")
+            }
+        },
         when (stat.executable) {
             true -> Mode.EXECUTABLE
             false -> Mode.REGULAR

@@ -22,7 +22,7 @@ run: gikt.jar
 	java -jar gikt.jar $(ARGS)
 
 commit: gikt.jar
-	cat .git/COMMIT_MSG | \
+	echo $(COMMIT_MSG) | \
 	GIT_AUTHOR_EMAIL="stolwijk.arian@gmail.com" \
 	GIT_AUTHOR_NAME=arian \
 	java -jar gikt.jar commit

@@ -105,17 +105,19 @@ class IndexTest {
         val indexPath = workspacePath.resolve("index")
         val index = Index(workspacePath, indexPath)
 
+        val fileNames = listOf(
+            "src/entry.kt",
+            "src/index.kt",
+            "src/workspace.kt",
+            "test/entry.kt",
+            "test/index.kt",
+            "test/refs.kt",
+            "test/lockfile.kt"
+        )
+
         index.loadForUpdate { lock ->
 
-            listOf(
-                "src/entry.kt",
-                "src/index.kt",
-                "src/workspace.kt",
-                "test/entry.kt",
-                "test/index.kt",
-                "test/refs.kt",
-                "test/lockfile.kt"
-            ).forEach {
+            fileNames.forEach {
                 val path = workspacePath.resolve(it)
                 path.parent.mkdirp()
                 path.write(it)
@@ -129,14 +131,17 @@ class IndexTest {
             index.writeUpdates(lock)
         }
 
-        val called = AtomicBoolean(false)
+        val list = index.load().toList().map { it.key }
 
-        index.loadForUpdate {
-            called.set(true)
-            it.rollback()
-        }
-
-        assertTrue(called.get())
+        assertEquals(listOf(
+            "src/entry.kt",
+            "src/index.kt",
+            "src/workspace.kt",
+            "test/entry.kt",
+            "test/index.kt",
+            "test/lockfile.kt",
+            "test/refs.kt"
+        ), list)
     }
 
     @Test

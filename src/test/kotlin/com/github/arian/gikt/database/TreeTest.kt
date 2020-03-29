@@ -145,8 +145,8 @@ class TreeTest {
 
             val file = Files.createFile(path.resolve("file.txt")).makeExecutable()
 
-            val tree = Tree(path).apply {
-                addEntry(Tree.Parents(), Entry(file, FileStat(executable = true), oid))
+            val tree = Tree(path.relativeTo(path)).apply {
+                addEntry(Tree.Parents(), Entry(file.relativeTo(path), FileStat(executable = true), oid))
             }
 
             val expected = ByteArray(0) +

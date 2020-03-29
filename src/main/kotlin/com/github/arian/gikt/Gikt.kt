@@ -11,6 +11,7 @@ import java.nio.file.Path
 import java.security.MessageDigest
 import java.time.Clock
 import java.time.Instant
+import java.util.*
 import java.util.zip.Deflater
 import java.util.zip.DeflaterInputStream
 import kotlin.system.exitProcess
@@ -52,32 +53,6 @@ fun main(args: Array<String>) {
         }
 
         "commit" -> {
-            val rootPath = getPwd()
-            val gitPath = rootPath.resolve(".git")
-            val dbPath = gitPath.resolve("objects")
-
-            val workspace = Workspace(rootPath)
-            val database = Database(dbPath)
-            val refs = Refs(gitPath)
-
-            val entries = workspace.listFiles().map {
-                val data = workspace.readFile(it)
-                val stat = workspace.statFile(it)
-                val blob = Blob(data)
-
-                database.store(blob)
-
-                Entry(it, stat, blob.oid)
-            }
-
-            val tree = Tree.build(rootPath, entries)
-
-            tree.traverse {
-                println(it.name)
-                database.store(it)
-            }
-
-            val parent = refs.readHead()
             val name = System.getenv("GIT_AUTHOR_NAME") ?: error("please set GIT_AUTHOR_NAME")
             val email = System.getenv("GIT_AUTHOR_EMAIL") ?: error("please set GIT_AUTHOR_EMAIL")
             val author = Author(
@@ -86,15 +61,37 @@ fun main(args: Array<String>) {
                 Instant.now().atZone(Clock.systemDefaultZone().zone)
             )
             val message: ByteArray = System.`in`.readAllBytes()
-
-            val commit = Commit(parent, tree.oid, author, message)
-            println(commit)
-            database.store(commit)
-            println("stored $database")
-            refs.updateHead(commit.oid)
-            println("head ${commit.oid}")
-
             val firstLine = message.toString(Charsets.UTF_8).split("\n").getOrNull(0) ?: ""
+
+            if (firstLine.isBlank()) {
+                System.err.println("gikt: empty commit message")
+                exitProcess(1)
+            }
+
+            val rootPath = getPwd()
+            val gitPath = rootPath.resolve(".git")
+            val indexPath = gitPath.resolve("index")
+            val dbPath = gitPath.resolve("objects")
+
+            val database = Database(dbPath)
+            val index = Index(workspacePath = rootPath, pathname = indexPath)
+            val refs = Refs(gitPath)
+
+            val entries = index.load().toList().map {
+                val path = rootPath.resolve(it.key).relativeTo(rootPath)
+                Entry(path, it.stat, it.oid)
+            }
+
+            val root = Tree.build(rootPath, entries)
+
+            root.traverse { database.store(it) }
+
+            val parent = refs.readHead()
+
+            val commit = Commit(parent, root.oid, author, message)
+            database.store(commit)
+            refs.updateHead(commit.oid)
+
             val isRoot = parent?.let { "" } ?: "(root-commit) "
             println("[$isRoot${commit.oid.hex} $firstLine")
         }
@@ -149,10 +146,7 @@ fun main(args: Array<String>) {
             val indexPath = gitPath.resolve("index")
             val index = Index(rootPath, indexPath)
 
-            index.loadForUpdate { lock ->
-                index.forEach { println(it.key) }
-                lock.rollback()
-            }
+            index.load().forEach { println(it.key) }
         }
 
         else -> {
