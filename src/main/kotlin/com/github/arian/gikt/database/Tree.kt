@@ -1,7 +1,5 @@
 package com.github.arian.gikt.database
 
-import com.github.arian.gikt.Entry
-import com.github.arian.gikt.Mode
 import com.github.arian.gikt.relativeTo
 import java.nio.charset.Charset
 import java.nio.file.Path
@@ -18,6 +16,10 @@ class Tree(
     override val name: Path,
     private val entries: MutableMap<String, TreeEntry> = mutableMapOf()
 ) : GiktObject(), TreeEntry {
+
+    init {
+        require(!name.isAbsolute) { "The path of the Tree should be relative to the workspace root" }
+    }
 
     override fun toString(): String {
         return String(data, Charset.defaultCharset())
@@ -86,5 +88,4 @@ class Tree(
         fun tail() = Parents(ps.drop(1))
         fun isEmpty() = ps.isEmpty()
     }
-
 }

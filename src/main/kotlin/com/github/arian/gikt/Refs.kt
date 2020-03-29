@@ -25,8 +25,7 @@ class Refs(pathname: Path) {
         headPath
             .takeIf { it.exists() }
             ?.readText()
-            ?.let { ObjectId(it.trim())}
+            ?.let { ObjectId(it.trim()) }
 
     class LockDenied(m: String) : Exception(m)
-
 }

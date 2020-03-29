@@ -1,7 +1,10 @@
-package com.github.arian.gikt
+package com.github.arian.gikt.database
 
-import com.github.arian.gikt.database.GiktObject
-import com.github.arian.gikt.database.ObjectId
+import com.github.arian.gikt.deflateInto
+import com.github.arian.gikt.exists
+import com.github.arian.gikt.mkdirp
+import com.github.arian.gikt.outputStream
+import com.github.arian.gikt.renameTo
 import java.nio.file.Path
 
 private val tempChars = ('a'..'z') + ('A'..'Z') + ('0'..'9')
@@ -35,6 +38,4 @@ class Database(private val pathname: Path) {
     }
 
     private fun generateTempName() = "temp_obj_${tempChars.shuffled().joinToString("")}"
-
 }
-

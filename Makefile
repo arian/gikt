@@ -35,8 +35,14 @@ test: gikt-test.jar
 		--scan-classpath \
 		--include-package=com.github.arian.gikt
 
+lint: $(SOURCES) $(TEST_SOURCES)
+	../gikt-lib/ktlint $^
+
+format: $(SOURCES) $(TEST_SOURCES)
+	../gikt-lib/ktlint --color --format $^
+
 clean:
 	rm -f gikt.jar
 	rm -f gikt-test.jar
 
-.PHONY: clean test run
+.PHONY: clean test run commit lint

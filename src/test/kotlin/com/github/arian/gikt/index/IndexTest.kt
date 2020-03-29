@@ -1,17 +1,25 @@
 package com.github.arian.gikt.index
 
-import com.github.arian.gikt.*
+import com.github.arian.gikt.FileStat
 import com.github.arian.gikt.database.Blob
 import com.github.arian.gikt.database.ObjectId
 import com.github.arian.gikt.database.toHexString
+import com.github.arian.gikt.mkdirp
+import com.github.arian.gikt.readBytes
+import com.github.arian.gikt.relativeTo
+import com.github.arian.gikt.stat
+import com.github.arian.gikt.touch
+import com.github.arian.gikt.write
 import com.google.common.jimfs.Configuration
 import com.google.common.jimfs.Jimfs
-import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicBoolean
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 
 class IndexTest {
 

@@ -1,11 +1,11 @@
 package com.github.arian.gikt
 
 import com.google.common.jimfs.Jimfs
+import java.nio.file.Files
+import java.nio.file.Path
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import java.nio.file.Files
-import java.nio.file.Path
 
 internal class WorkspaceTest {
 
@@ -98,5 +98,3 @@ internal class WorkspaceTest {
         assertEquals(emptyList<String>(), files)
     }
 }
-
-

@@ -1,7 +1,6 @@
-package com.github.arian.gikt
+package com.github.arian.gikt.database
 
-import com.github.arian.gikt.database.ObjectId
-import com.github.arian.gikt.database.TreeEntry
+import com.github.arian.gikt.FileStat
 import java.nio.file.Path
 
 enum class Mode(val mode: String) {
@@ -15,6 +14,11 @@ class Entry private constructor(
     override val mode: Mode = Mode.REGULAR,
     override val oid: ObjectId
 ) : TreeEntry {
+
+    init {
+        require(!name.isAbsolute) { "The path must not be absolute, but relative to the workspace path" }
+    }
+
     val parents: List<Path>
         get() {
             val names = (0 until name.nameCount).map { name.getName(it) }
@@ -26,11 +30,7 @@ class Entry private constructor(
         stat: FileStat,
         oid: ObjectId
     ) : this(
-        name.also {
-            if (name.isAbsolute) {
-                throw IllegalArgumentException("The path must not be absolute, but relative to the workspace path")
-            }
-        },
+        name,
         when (stat.executable) {
             true -> Mode.EXECUTABLE
             false -> Mode.REGULAR

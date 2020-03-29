@@ -3,6 +3,8 @@ package com.github.arian.gikt
 import com.github.arian.gikt.database.Author
 import com.github.arian.gikt.database.Blob
 import com.github.arian.gikt.database.Commit
+import com.github.arian.gikt.database.Database
+import com.github.arian.gikt.database.Entry
 import com.github.arian.gikt.database.Tree
 import com.github.arian.gikt.index.Index
 import java.io.OutputStream
@@ -11,7 +13,6 @@ import java.nio.file.Path
 import java.security.MessageDigest
 import java.time.Clock
 import java.time.Instant
-import java.util.*
 import java.util.zip.Deflater
 import java.util.zip.DeflaterInputStream
 import kotlin.system.exitProcess
@@ -124,7 +125,6 @@ fun main(args: Array<String>) {
                     }
 
                 index.writeUpdates(lock)
-
             }
 
             exitProcess(0)

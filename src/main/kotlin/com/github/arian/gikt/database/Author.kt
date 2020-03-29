@@ -11,5 +11,4 @@ class Author(private val name: String, private val email: String, private val no
         val timestamp = "${now.toEpochSecond()} ${zoneFormatter.format(now)}"
         return "$name <$email> $timestamp"
     }
-
 }

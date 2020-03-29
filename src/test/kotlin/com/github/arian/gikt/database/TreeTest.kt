@@ -1,13 +1,19 @@
 package com.github.arian.gikt.database
 
-import com.github.arian.gikt.*
+import com.github.arian.gikt.FileStat
+import com.github.arian.gikt.Workspace
+import com.github.arian.gikt.deleteRecursively
+import com.github.arian.gikt.makeExecutable
+import com.github.arian.gikt.mkdirp
+import com.github.arian.gikt.relativeTo
+import com.github.arian.gikt.touch
+import java.nio.file.Files
+import java.nio.file.Path
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
-import java.nio.file.Files
-import java.nio.file.Path
 
 class TreeTest {
 
@@ -86,6 +92,14 @@ class TreeTest {
     }
 
     @Test
+    fun `tree empty`() {
+        val path = Path.of(".")
+        val tree = Tree(path)
+        val expected = ByteArray(0)
+        assertEquals(expected.toString(Charsets.UTF_8), tree.data.toString(Charsets.UTF_8))
+    }
+
+    @Test
     fun traverse() {
         val oid = ObjectId(ByteArray(20) { it.toByte() })
 
@@ -146,7 +160,13 @@ class TreeTest {
             val file = Files.createFile(path.resolve("file.txt")).makeExecutable()
 
             val tree = Tree(path.relativeTo(path)).apply {
-                addEntry(Tree.Parents(), Entry(file.relativeTo(path), FileStat(executable = true), oid))
+                addEntry(Tree.Parents(),
+                    Entry(
+                        file.relativeTo(path),
+                        FileStat(executable = true),
+                        oid
+                    )
+                )
             }
 
             val expected = ByteArray(0) +
@@ -166,7 +186,11 @@ class TreeTest {
             val workspace = Workspace(path)
 
             val entries = workspace.listFiles().map {
-                Entry(it, workspace.statFile(it), ObjectId(ByteArray(20)))
+                Entry(
+                    it,
+                    workspace.statFile(it),
+                    ObjectId(ByteArray(20))
+                )
             }
 
             val tree = Tree.build(path, entries)

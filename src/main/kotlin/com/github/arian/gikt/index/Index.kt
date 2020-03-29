@@ -11,7 +11,7 @@ import java.nio.file.NoSuchFileException
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
 import java.security.MessageDigest
-import java.util.*
+import java.util.SortedSet
 import kotlin.math.min
 
 private const val MAX_PATH_SIZE = 0xFFF
@@ -282,4 +282,3 @@ class Index(private val workspacePath: Path, val pathname: Path) {
         keys.add(entry.key)
     }
 }
-

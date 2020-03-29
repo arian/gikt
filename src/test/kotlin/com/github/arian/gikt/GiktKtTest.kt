@@ -1,10 +1,10 @@
 package com.github.arian.gikt
 
 import com.github.arian.gikt.database.toHexString
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Test
 import java.io.ByteArrayOutputStream
 import java.util.zip.Inflater
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
 
 class GiktKtTest {
 

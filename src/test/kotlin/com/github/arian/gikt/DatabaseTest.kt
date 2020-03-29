@@ -1,13 +1,14 @@
 package com.github.arian.gikt
 
 import com.github.arian.gikt.database.Blob
+import com.github.arian.gikt.database.Database
 import com.google.common.jimfs.Jimfs
+import java.nio.file.Files
+import java.nio.file.Path
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import java.nio.file.Files
-import java.nio.file.Path
 
 class DatabaseTest {
 
@@ -40,4 +41,3 @@ class DatabaseTest {
         assertEquals(timeBefore, timeAfter, "should not have modified the file")
     }
 }
-

@@ -2,18 +2,19 @@ package com.github.arian.gikt
 
 import com.google.common.jimfs.Configuration
 import com.google.common.jimfs.Jimfs
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.attribute.FileTime
 import java.time.Duration
 import java.time.Instant
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 
-class FileStatTest{
-
+class FileStatTest {
 
     private lateinit var path: Path
 

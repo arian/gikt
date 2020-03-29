@@ -1,11 +1,11 @@
 package com.github.arian.gikt.database
 
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Test
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
 
 class AuthorTest {
 
