@@ -3,7 +3,7 @@ package com.github.arian.gikt.index
 import com.github.arian.gikt.FileStat
 import com.github.arian.gikt.Lockfile
 import com.github.arian.gikt.database.ObjectId
-import com.github.arian.gikt.relativeTo
+import com.github.arian.gikt.parents
 import java.io.Closeable
 import java.nio.ByteBuffer
 import java.nio.file.Files
@@ -172,7 +172,7 @@ class Checksum(val file: Path) : Closeable {
     class EndOfFile(msg: String) : Exception(msg)
 }
 
-class Index(private val workspacePath: Path, val pathname: Path) {
+class Index(val pathname: Path) {
 
     private var entries: Map<String, Entry> = emptyMap()
     private val keys: SortedSet<String> = sortedSetOf()
@@ -180,13 +180,21 @@ class Index(private val workspacePath: Path, val pathname: Path) {
     private var changed = false
 
     fun add(path: Path, oid: ObjectId, stat: FileStat) {
-        val p = path.relativeTo(workspacePath)
-        val entry = Entry(p, oid, stat)
+        require(!path.isAbsolute) { "Path should be relative to workspace path" }
+        val entry = Entry(path, oid, stat)
+        discardConflicts(path)
         storeEntry(entry)
         changed = true
     }
 
-    private fun toList(): List<Entry> =
+    private fun discardConflicts(path: Path) {
+        path.parents().forEach {
+            keys.remove(it.toString())
+            entries = entries - it.toString()
+        }
+    }
+
+    fun toList(): List<Entry> =
         keys.map { requireNotNull(entries[it]) }.toList()
 
     private fun forEach(fn: (Entry) -> Unit) =
@@ -210,8 +218,8 @@ class Index(private val workspacePath: Path, val pathname: Path) {
         lock.commit()
     }
 
-    fun loadForUpdate(action: (Lockfile.Ref) -> Unit) {
-        lockfile.holdForUpdate {
+    fun loadForUpdate(action: (Lockfile.Ref) -> Unit): Boolean {
+        return lockfile.holdForUpdate {
             load(it.path)
             action(it)
         }

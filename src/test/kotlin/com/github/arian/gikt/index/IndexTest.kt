@@ -25,30 +25,77 @@ class IndexTest {
 
     private lateinit var workspacePath: Path
 
+    private val oid = ObjectId("1234512345123451234512345123451234512345")
+    private val stat = FileStat(executable = false)
+
     @BeforeEach
     fun before() {
         val fs = Jimfs.newFileSystem(Configuration.unix().toBuilder().setAttributeViews("unix").build())
-        workspacePath = fs.getPath("gitk-index")
+        workspacePath = fs.getPath("/gitk-index")
         Files.createDirectory(workspacePath)
+    }
+
+    private fun rel(path: String) = workspacePath.resolve(path).relativeTo(workspacePath)
+
+    private fun rel(path: Path) = path.relativeTo(workspacePath)
+
+    @Test
+    fun `new index`() {
+        val indexPath = workspacePath.resolve("index")
+        val index = Index(indexPath)
+
+        index.add(rel("alice.txt"), oid, stat)
+        index.add(rel("bob.txt"), oid, stat)
+
+        assertEquals(listOf("alice.txt", "bob.txt"), index.toList().map { it.key })
+    }
+
+    @Test
+    fun `replaces a file with a directory`() {
+        val index = Index(workspacePath.resolve("index"))
+
+        index.add(rel("alice.txt"), oid, stat)
+        index.add(rel("bob.txt"), oid, stat)
+        index.add(rel("alice.txt/nested.txt"), oid, stat)
+
+        assertEquals(listOf("alice.txt/nested.txt", "bob.txt"), index.toList().map { it.key })
+    }
+
+    @Test
+    fun `replaces a directory with a file`() {
+        val index = Index(workspacePath.resolve("index"))
+
+        index.add(rel("alice.txt"), oid, stat)
+        index.add(rel("nested/bob.txt"), oid, stat)
+        index.add(rel("nested"), oid, stat)
+
+        assertEquals(listOf("alice.txt", "nested"), index.toList().map { it.key })
+    }
+
+    @Test
+    fun `recursively replaces a directory with a file`() {
+        val index = Index(workspacePath.resolve("index"))
+
+        index.add(rel("alice.txt"), oid, stat)
+        index.add(rel("nested/bob.txt"), oid, stat)
+        index.add(rel("nested/inner/claire.txt"), oid, stat)
+
+        index.add(rel("nested"), oid, stat)
+
+        assertEquals(listOf("alice.txt", "nested"), index.toList().map { it.key })
     }
 
     @Test
     fun createIndex() {
         val indexPath = workspacePath.resolve("index")
-        val index = Index(workspacePath, indexPath)
+        val index = Index(indexPath)
         val path = workspacePath.resolve("a.txt").touch()
 
         val called = AtomicBoolean(false)
 
         index.loadForUpdate { lock ->
             called.set(true)
-
-            index.add(
-                path,
-                ObjectId("1234512345123451234512345123451234512345"),
-                FileStat(executable = false)
-            )
-
+            index.add(rel(path), oid, stat)
             index.writeUpdates(lock)
         }
 
@@ -68,7 +115,7 @@ class IndexTest {
 
     @Test
     fun `return false when index is locked`() {
-        val index = Index(workspacePath, workspacePath.resolve("index"))
+        val index = Index(workspacePath.resolve("index"))
         workspacePath.resolve("index.lock").touch()
 
         val called = AtomicBoolean(false)
@@ -111,7 +158,7 @@ class IndexTest {
     @Test
     fun addMultipleFiles() {
         val indexPath = workspacePath.resolve("index")
-        val index = Index(workspacePath, indexPath)
+        val index = Index(indexPath)
 
         val fileNames = listOf(
             "src/entry.kt",
@@ -133,7 +180,7 @@ class IndexTest {
                 val stat = path.stat()
                 val data = path.readBytes()
                 val blob = Blob(data)
-                index.add(path, blob.oid, stat)
+                index.add(rel(path), blob.oid, stat)
             }
 
             index.writeUpdates(lock)
@@ -141,15 +188,17 @@ class IndexTest {
 
         val list = index.load().toList().map { it.key }
 
-        assertEquals(listOf(
-            "src/entry.kt",
-            "src/index.kt",
-            "src/workspace.kt",
-            "test/entry.kt",
-            "test/index.kt",
-            "test/lockfile.kt",
-            "test/refs.kt"
-        ), list)
+        assertEquals(
+            listOf(
+                "src/entry.kt",
+                "src/index.kt",
+                "src/workspace.kt",
+                "test/entry.kt",
+                "test/index.kt",
+                "test/lockfile.kt",
+                "test/refs.kt"
+            ), list
+        )
     }
 
     @Test

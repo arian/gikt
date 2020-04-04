@@ -75,7 +75,7 @@ fun main(args: Array<String>) {
             val dbPath = gitPath.resolve("objects")
 
             val database = Database(dbPath)
-            val index = Index(workspacePath = rootPath, pathname = indexPath)
+            val index = Index(indexPath)
             val refs = Refs(gitPath)
 
             val entries = index.load().toList().map {
@@ -105,9 +105,9 @@ fun main(args: Array<String>) {
 
             val workspace = Workspace(rootPath)
             val database = Database(dbPath)
-            val index = Index(rootPath, indexPath)
+            val index = Index(indexPath)
 
-            index.loadForUpdate { lock ->
+            val lockedSuccessfully = index.loadForUpdate { lock ->
 
                 args.drop(1)
                     .flatMap {
@@ -121,13 +121,18 @@ fun main(args: Array<String>) {
 
                         val blob = Blob(data)
                         database.store(blob)
-                        index.add(path, blob.oid, stat)
+                        index.add(path.relativeTo(rootPath), blob.oid, stat)
                     }
 
                 index.writeUpdates(lock)
             }
 
-            exitProcess(0)
+            if (lockedSuccessfully) {
+                exitProcess(0)
+            } else {
+                System.err.println("Could not lock the index")
+                exitProcess(1)
+            }
         }
 
         "hello" -> {
@@ -144,7 +149,7 @@ fun main(args: Array<String>) {
             val rootPath = getPwd()
             val gitPath = rootPath.resolve(".git")
             val indexPath = gitPath.resolve("index")
-            val index = Index(rootPath, indexPath)
+            val index = Index(indexPath)
 
             index.load().forEach { println(it.key) }
         }

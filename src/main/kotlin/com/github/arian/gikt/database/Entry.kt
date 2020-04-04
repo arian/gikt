@@ -1,6 +1,7 @@
 package com.github.arian.gikt.database
 
 import com.github.arian.gikt.FileStat
+import com.github.arian.gikt.parents
 import java.nio.file.Path
 
 enum class Mode(val mode: String) {
@@ -19,11 +20,7 @@ class Entry private constructor(
         require(!name.isAbsolute) { "The path must not be absolute, but relative to the workspace path" }
     }
 
-    val parents: List<Path>
-        get() {
-            val names = (0 until name.nameCount).map { name.getName(it) }
-            return names.dropLast(1)
-        }
+    val parents: List<Path> get() = name.parents()
 
     constructor(
         name: Path,

@@ -20,6 +20,9 @@ fun Path.listFiles(): List<Path> = Files.list(this).collect(Collectors.toList())
  */
 fun Path.relativeTo(other: Path): Path = other.relativize(this)
 
+fun Path.parents(): List<Path> =
+    (0 until nameCount).map { getName(it) }.dropLast(1)
+
 fun Path.readBytes(): ByteArray = Files.readAllBytes(this)
 
 fun Path.readText(): String = Files.newBufferedReader(this).readText()
