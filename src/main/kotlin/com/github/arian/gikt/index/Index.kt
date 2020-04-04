@@ -172,10 +172,11 @@ class Checksum(val file: Path) : Closeable {
     class EndOfFile(msg: String) : Exception(msg)
 }
 
-class Index(val pathname: Path) {
+class Index(private val pathname: Path) {
 
     private var entries: Map<String, Entry> = emptyMap()
     private val keys: SortedSet<String> = sortedSetOf()
+    private var parents: Map<String, Set<String>> = emptyMap()
     private val lockfile = Lockfile(pathname)
     private var changed = false
 
@@ -188,10 +189,8 @@ class Index(val pathname: Path) {
     }
 
     private fun discardConflicts(path: Path) {
-        path.parents().forEach {
-            keys.remove(it.toString())
-            entries = entries - it.toString()
-        }
+        path.parents().forEach { removeEntry(it.toString()) }
+        parents[path.toString()]?.forEach { removeEntry(it) }
     }
 
     fun toList(): List<Entry> =
@@ -247,6 +246,7 @@ class Index(val pathname: Path) {
     private fun clear() {
         entries = emptyMap()
         keys.clear()
+        parents = emptyMap()
         changed = false
     }
 
@@ -286,7 +286,32 @@ class Index(val pathname: Path) {
     }
 
     private fun storeEntry(entry: Entry) {
-        entries = entries + (entry.key to entry)
         keys.add(entry.key)
+        entries = entries + (entry.key to entry)
+
+        Path.of(entry.key).parents().forEach {
+            val dir = it.toString()
+            val value = parents.getOrDefault(dir, emptySet()) + entry.key
+            parents = parents + (dir to value)
+        }
+    }
+
+    private fun removeEntry(key: String) {
+        val entry = entries[key] ?: return
+
+        keys.remove(entry.key)
+        entries = entries - entry.key
+
+        Path.of(entry.key).parents().forEach {
+            val dir = it.toString()
+            val value = parents[dir]
+            if (value != null) {
+                parents = if (value.isNotEmpty()) {
+                    parents + (dir to (value - entry.key))
+                } else {
+                    parents - dir
+                }
+            }
+        }
     }
 }
