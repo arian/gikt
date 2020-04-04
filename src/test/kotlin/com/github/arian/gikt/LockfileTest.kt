@@ -5,7 +5,6 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicBoolean
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -92,11 +91,21 @@ internal class LockfileTest {
     }
 
     @Test
+    fun `rollback neither commit called`() {
+        val file = path.resolve("a.txt").touch()
+        assertThrows<Lockfile.StaleLock> {
+            Lockfile(file).holdForUpdate {
+                it.write("hello")
+            }
+        }
+    }
+
+    @Test
     fun `already exists`() {
         val file = path.resolve("a.txt").touch()
         path.resolve("a.txt.lock").touch()
         val lock = Lockfile(file)
-        assertFalse(lock.holdForUpdate())
+        assertThrows<Lockfile.LockDenied> { lock.holdForUpdate() }
     }
 
     @Test
@@ -105,17 +114,13 @@ internal class LockfileTest {
         val lock = Lockfile(file)
 
         val one = AtomicBoolean(false)
-        val two = AtomicBoolean(false)
 
         lock.holdForUpdate {
             one.set(true)
-            lock.holdForUpdate {
-                two.set(true)
-            }
+            assertThrows<Lockfile.LockDenied> { lock.holdForUpdate() }
             it.rollback()
         }
 
         assertTrue(one.get())
-        assertFalse(two.get())
     }
 }

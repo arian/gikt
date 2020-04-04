@@ -107,32 +107,53 @@ fun main(args: Array<String>) {
             val database = Database(dbPath)
             val index = Index(indexPath)
 
-            val lockedSuccessfully = index.loadForUpdate { lock ->
+            try {
+                index.loadForUpdate { lock ->
 
-                args.drop(1)
-                    .flatMap {
-                        val path = rootPath.resolve(it)
-                        workspace.listFiles(path)
-                    }
-                    .forEach {
-                        val path = rootPath.resolve(it)
-                        val data = workspace.readFile(path)
-                        val stat = workspace.statFile(path)
-
-                        val blob = Blob(data)
-                        database.store(blob)
-                        index.add(path.relativeTo(rootPath), blob.oid, stat)
+                    val paths = try {
+                        args.drop(1)
+                            .flatMap {
+                                val path = rootPath.resolve(it)
+                                workspace.listFiles(path)
+                            }
+                    } catch (e: Workspace.MissingFile) {
+                        System.err.println("fatal: ${e.message}")
+                        lock.rollback()
+                        exitProcess(128)
                     }
 
-                index.writeUpdates(lock)
-            }
+                    try {
+                        paths.forEach {
+                            val path = rootPath.resolve(it)
+                            val data = workspace.readFile(path)
+                            val stat = workspace.statFile(path)
 
-            if (lockedSuccessfully) {
-                exitProcess(0)
-            } else {
-                System.err.println("Could not lock the index")
+                            val blob = Blob(data)
+                            database.store(blob)
+                            index.add(path.relativeTo(rootPath), blob.oid, stat)
+                        }
+                    } catch (e: Workspace.NoPermission) {
+                        System.err.println("error: ${e.message}")
+                        System.err.println("fatal: adding files failed")
+                        lock.rollback()
+                        exitProcess(128)
+                    }
+
+                    index.writeUpdates(lock)
+                }
+            } catch (e: Lockfile.LockDenied) {
+                System.err.println("""
+                    fatal: ${e.message}
+
+                    Another gikt process seems to be running in this repository.
+                    Please make sure all processes are terminated then try again.
+                    If it still fails, a gikt process may have crashed in this
+                    repository earlier: remove the file manually to continue.
+                """.trimIndent())
                 exitProcess(1)
             }
+
+            exitProcess(0)
         }
 
         "hello" -> {

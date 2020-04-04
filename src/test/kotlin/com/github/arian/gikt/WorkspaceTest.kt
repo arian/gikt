@@ -6,8 +6,9 @@ import java.nio.file.Path
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
-internal class WorkspaceTest {
+class WorkspaceTest {
 
     private lateinit var path: Path
 
@@ -96,5 +97,13 @@ internal class WorkspaceTest {
         val workspace = Workspace(path)
         val files = workspace.listFiles(path.resolve(".git")).map { it.toString() }
         assertEquals(emptyList<String>(), files)
+    }
+
+    @Test
+    fun `listFiles throws for non-existing file`() {
+        val workspace = Workspace(path)
+        assertThrows<Workspace.MissingFile> {
+            workspace.listFiles(path.resolve("blabla"))
+        }
     }
 }

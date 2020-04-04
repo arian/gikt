@@ -21,20 +21,24 @@ class Lockfile(private val path: Path) {
         val ref = try {
             Ref(this)
         } catch (e: FileAlreadyExistsException) {
-            null
+            throw LockDenied("Unable to create '$lockPath': File exists.")
         } catch (e: NoSuchFileException) {
             throw MissingParent(e.message)
         } catch (e: AccessDeniedException) {
             throw NoPermission(e.message)
         }
 
-        ref?.use {
-            consumer(it)
-            if (!it.done) {
-                throw StaleLock("Neither `commit` or `rollback` called with open lock")
+        ref.use {
+            try {
+                consumer(it)
+            } finally {
+                if (!it.done) {
+                    throw StaleLock("Neither `commit` or `rollback` called with open lock")
+                }
             }
         }
-        return ref != null
+
+        return true
     }
 
     class Ref internal constructor(private val lockfile: Lockfile) : Closeable {
@@ -93,4 +97,5 @@ class Lockfile(private val path: Path) {
     class MissingParent(m: String?) : Exception(m)
     class NoPermission(m: String?) : Exception(m)
     class StaleLock(m: String?) : Exception(m)
+    class LockDenied(m: String) : Exception(m)
 }

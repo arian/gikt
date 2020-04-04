@@ -1,6 +1,7 @@
 package com.github.arian.gikt.index
 
 import com.github.arian.gikt.FileStat
+import com.github.arian.gikt.Lockfile
 import com.github.arian.gikt.database.Blob
 import com.github.arian.gikt.database.ObjectId
 import com.github.arian.gikt.database.toHexString
@@ -16,10 +17,10 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicBoolean
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 class IndexTest {
 
@@ -117,14 +118,7 @@ class IndexTest {
     fun `return false when index is locked`() {
         val index = Index(workspacePath.resolve("index"))
         workspacePath.resolve("index.lock").touch()
-
-        val called = AtomicBoolean(false)
-
-        index.loadForUpdate {
-            called.set(true)
-        }
-
-        assertFalse(called.get())
+        assertThrows<Lockfile.LockDenied> { index.loadForUpdate { } }
     }
 
     @Test

@@ -10,14 +10,10 @@ class Refs(pathname: Path) {
     fun updateHead(oid: ObjectId) {
         val lockfile = Lockfile(headPath)
 
-        val success = lockfile.holdForUpdate {
+        lockfile.holdForUpdate {
             it.write(oid.hex)
             it.write("\n")
             it.commit()
-        }
-
-        if (!success) {
-            throw LockDenied("Could not acquire lock on file: $headPath")
         }
     }
 
@@ -26,6 +22,4 @@ class Refs(pathname: Path) {
             .takeIf { it.exists() }
             ?.readText()
             ?.let { ObjectId(it.trim()) }
-
-    class LockDenied(m: String) : Exception(m)
 }
