@@ -31,6 +31,8 @@ class Lockfile(private val path: Path) {
         ref.use {
             try {
                 consumer(it)
+            } catch (e: Exception) {
+                throw e
             } finally {
                 if (!it.done) {
                     throw StaleLock("Neither `commit` or `rollback` called with open lock")
