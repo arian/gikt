@@ -44,47 +44,58 @@ class IndexTest(private val fileSystemProvider: FileSystemExtension.FileSystemPr
     @Test
     fun `new index`() {
         val indexPath = workspacePath.resolve("index")
-        val index = Index(indexPath)
+        val index = Index(indexPath).loadForUpdate {
+            add(rel("alice.txt"), oid, stat)
+            add(rel("bob.txt"), oid, stat)
+            writeUpdates()
+        }
 
-        index.add(rel("alice.txt"), oid, stat)
-        index.add(rel("bob.txt"), oid, stat)
-
-        assertEquals(listOf("alice.txt", "bob.txt"), index.toList().map { it.key })
+        assertEquals(listOf("alice.txt", "bob.txt"), index.load().toList().map { it.key })
     }
 
     @Test
     fun `replaces a file with a directory`() {
         val index = Index(workspacePath.resolve("index"))
 
-        index.add(rel("alice.txt"), oid, stat)
-        index.add(rel("bob.txt"), oid, stat)
-        index.add(rel("alice.txt/nested.txt"), oid, stat)
+        index.loadForUpdate {
+            add(rel("alice.txt"), oid, stat)
+            add(rel("bob.txt"), oid, stat)
+            add(rel("alice.txt/nested.txt"), oid, stat)
+            writeUpdates()
+        }
 
-        assertEquals(listOf("alice.txt/nested.txt", "bob.txt"), index.toList().map { it.key })
+        assertEquals(listOf("alice.txt/nested.txt", "bob.txt"), index.load().toList().map { it.key })
     }
 
     @Test
     fun `replaces a directory with a file`() {
         val index = Index(workspacePath.resolve("index"))
 
-        index.add(rel("alice.txt"), oid, stat)
-        index.add(rel("nested/bob.txt"), oid, stat)
-        index.add(rel("nested"), oid, stat)
+        index.loadForUpdate {
+            add(rel("alice.txt"), oid, stat)
+            add(rel("nested/bob.txt"), oid, stat)
+            add(rel("nested"), oid, stat)
+            writeUpdates()
+        }
 
-        assertEquals(listOf("alice.txt", "nested"), index.toList().map { it.key })
+        assertEquals(listOf("alice.txt", "nested"), index.load().toList().map { it.key })
     }
 
     @Test
     fun `recursively replaces a directory with a file`() {
         val index = Index(workspacePath.resolve("index"))
 
-        index.add(rel("alice.txt"), oid, stat)
-        index.add(rel("nested/bob.txt"), oid, stat)
-        index.add(rel("nested/inner/claire.txt"), oid, stat)
+        index.loadForUpdate {
+            add(rel("alice.txt"), oid, stat)
+            add(rel("nested/bob.txt"), oid, stat)
+            add(rel("nested/inner/claire.txt"), oid, stat)
 
-        index.add(rel("nested"), oid, stat)
+            add(rel("nested"), oid, stat)
 
-        assertEquals(listOf("alice.txt", "nested"), index.toList().map { it.key })
+            writeUpdates()
+        }
+
+        assertEquals(listOf("alice.txt", "nested"), index.load().toList().map { it.key })
     }
 
     @Test
@@ -95,10 +106,10 @@ class IndexTest(private val fileSystemProvider: FileSystemExtension.FileSystemPr
 
         val called = AtomicBoolean(false)
 
-        index.loadForUpdate { lock ->
+        index.loadForUpdate {
             called.set(true)
-            index.add(rel(path), oid, stat)
-            index.writeUpdates(lock)
+            add(rel(path), oid, stat)
+            writeUpdates()
         }
 
         assertTrue(called.get())
@@ -165,7 +176,7 @@ class IndexTest(private val fileSystemProvider: FileSystemExtension.FileSystemPr
             "test/lockfile.kt"
         )
 
-        index.loadForUpdate { lock ->
+        index.loadForUpdate {
 
             fileNames.forEach {
                 val path = workspacePath.resolve(it)
@@ -175,10 +186,10 @@ class IndexTest(private val fileSystemProvider: FileSystemExtension.FileSystemPr
                 val stat = path.stat()
                 val data = path.readBytes()
                 val blob = Blob(data)
-                index.add(rel(path), blob.oid, stat)
+                add(rel(path), blob.oid, stat)
             }
 
-            index.writeUpdates(lock)
+            writeUpdates()
         }
 
         val list = index.load().toList().map { it.key }

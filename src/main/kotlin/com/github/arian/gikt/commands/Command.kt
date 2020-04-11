@@ -53,6 +53,7 @@ object Command {
         "init" to { ctx: CommandContext -> Init(ctx) },
         "add" to { ctx: CommandContext -> Add(ctx) },
         "commit" to { ctx: CommandContext -> Commit(ctx) },
+        "status" to { ctx: CommandContext -> Status(ctx) },
         "ls-files" to { ctx: CommandContext -> ListFiles(ctx) },
         "help" to { ctx: CommandContext -> Help(ctx) }
     )

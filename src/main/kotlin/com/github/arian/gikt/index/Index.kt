@@ -180,7 +180,7 @@ class Index(private val pathname: Path) {
     private val lockfile = Lockfile(pathname)
     private var changed = false
 
-    fun add(path: Path, oid: ObjectId, stat: FileStat) {
+    private fun add(path: Path, oid: ObjectId, stat: FileStat) {
         require(!path.isAbsolute) { "Path should be relative to workspace path" }
         val entry = Entry(path, oid, stat)
         discardConflicts(path)
@@ -193,13 +193,13 @@ class Index(private val pathname: Path) {
         parents[path.toString()]?.forEach { removeEntry(it) }
     }
 
-    fun toList(): List<Entry> =
+    private fun toList(): List<Entry> =
         keys.map { requireNotNull(entries[it]) }.toList()
 
     private fun forEach(fn: (Entry) -> Unit) =
         toList().forEach(fn)
 
-    fun writeUpdates(lock: Lockfile.Ref) {
+    private fun writeUpdates(lock: Lockfile.Ref) {
         if (!changed) {
             lock.rollback()
             return
@@ -217,16 +217,24 @@ class Index(private val pathname: Path) {
         lock.commit()
     }
 
-    fun loadForUpdate(action: (Lockfile.Ref) -> Unit): Boolean {
-        return lockfile.holdForUpdate {
+    class Updater internal constructor(private val index: Index, private val lock: Lockfile.Ref) {
+        fun add(path: Path, oid: ObjectId, stat: FileStat) = index.add(path, oid, stat)
+        fun writeUpdates() = index.writeUpdates(lock)
+        fun rollback() = lock.rollback()
+    }
+
+    fun loadForUpdate(action: Updater.() -> Unit): Index {
+        lockfile.holdForUpdate {
             load(it.path)
-            action(it)
+            action(Updater(this, it))
         }
+        return this
     }
 
     class Loaded internal constructor(private val index: Index) {
         fun forEach(fn: (Entry) -> Unit) = index.forEach(fn)
         fun toList() = index.toList()
+        fun tracked(it: Path): Boolean = index.entries.containsKey(it.toString())
     }
 
     fun load(): Loaded {

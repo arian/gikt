@@ -50,6 +50,14 @@ class CommandHelper : Closeable {
         cmd("init")
     }
 
+    fun commit(msg: String) {
+        val env = mapOf(
+            "GIT_AUTHOR_NAME" to "Arian",
+            "GIT_AUTHOR_EMAIL" to "arian@example.com"
+        )
+        cmd("commit", env = env, stdin = msg)
+    }
+
     fun cmd(
         name: String,
         vararg args: String,

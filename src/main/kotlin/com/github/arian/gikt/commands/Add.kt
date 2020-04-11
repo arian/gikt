@@ -4,6 +4,7 @@ import com.github.arian.gikt.Lockfile
 import com.github.arian.gikt.Repository
 import com.github.arian.gikt.Workspace
 import com.github.arian.gikt.database.Blob
+import com.github.arian.gikt.index.Index
 import java.nio.file.Path
 
 private val LOCKED_INDEX_MESSAGE = """
@@ -24,16 +25,16 @@ class Add(ctx: CommandContext) : AbstractCommand(ctx) {
     }
 
     private fun updateIndex() {
-        repository.index.loadForUpdate { lock ->
+        repository.index.loadForUpdate {
             kotlin
-                .runCatching { updateIndexLocked(lock) }
-                .getOrElse { handleException(it, lock) }
+                .runCatching { updateIndexLocked(this) }
+                .getOrElse { handleException(it, this) }
         }
     }
 
-    private fun updateIndexLocked(lock: Lockfile.Ref) {
-        expandedPaths(repository).forEach { addToIndex(repository, it) }
-        repository.index.writeUpdates(lock)
+    private fun updateIndexLocked(index: Index.Updater) {
+        expandedPaths(repository).forEach { addToIndex(index, it) }
+        index.writeUpdates()
     }
 
     private fun expandedPaths(repository: Repository): List<Path> =
@@ -41,26 +42,26 @@ class Add(ctx: CommandContext) : AbstractCommand(ctx) {
             repository.workspace.listFiles(repository.resolvePath(it))
         }
 
-    private fun addToIndex(repository: Repository, path: Path) {
+    private fun addToIndex(index: Index.Updater, path: Path) {
         val data = repository.workspace.readFile(path)
         val stat = repository.workspace.statFile(path)
 
         val blob = Blob(data)
         repository.database.store(blob)
-        repository.index.add(path, blob.oid, stat)
+        index.add(path, blob.oid, stat)
     }
 
-    private fun handleException(e: Throwable, lock: Lockfile.Ref? = null): Nothing {
+    private fun handleException(e: Throwable, index: Index.Updater? = null): Nothing {
         when (e) {
             is Workspace.MissingFile -> {
                 ctx.stderr.println("fatal: ${e.message}")
-                lock?.rollback()
+                index?.rollback()
                 exitProcess(128)
             }
             is Workspace.NoPermission -> {
                 ctx.stderr.println("error: ${e.message}")
                 ctx.stderr.println("fatal: adding files failed")
-                lock?.rollback()
+                index?.rollback()
                 exitProcess(128)
             }
             is Lockfile.LockDenied -> {
