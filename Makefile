@@ -21,7 +21,7 @@ run: gikt.jar
 	java -jar gikt.jar $(ARGS)
 
 commit: test lint gikt.jar
-	echo $(COMMIT_MSG) | \
+	echo "$(COMMIT_MSG)" | \
 	GIT_AUTHOR_EMAIL="stolwijk.arian@gmail.com" \
 	GIT_AUTHOR_NAME=arian \
 	java -jar gikt.jar commit
