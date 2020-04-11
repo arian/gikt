@@ -54,7 +54,7 @@ class CommandHelper : Closeable {
         name: String,
         vararg args: String,
         env: Map<String, String> = emptyMap(),
-        stdin: ByteArray? = null
+        stdin: String? = null
     ): CommandTestExecution {
 
         val stderr = ByteArrayOutputStream()
@@ -65,7 +65,7 @@ class CommandHelper : Closeable {
             args = args.toList(),
             stderr = PrintStream(stderr),
             stdout = PrintStream(stdout),
-            stdin = ByteArrayInputStream(stdin ?: ByteArray(0)),
+            stdin = ByteArrayInputStream(stdin?.toByteArray(Charsets.UTF_8) ?: ByteArray(0)),
             env = { env[it] },
             clock = Clock.systemDefaultZone()
         )

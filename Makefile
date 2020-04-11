@@ -20,7 +20,7 @@ gikt-test.jar: gikt.jar $(TEST_SOURCES) $(TEST_LIBS_COMPILE)
 run: gikt.jar
 	java -jar gikt.jar $(ARGS)
 
-commit: gikt.jar
+commit: test lint gikt.jar
 	echo $(COMMIT_MSG) | \
 	GIT_AUTHOR_EMAIL="stolwijk.arian@gmail.com" \
 	GIT_AUTHOR_NAME=arian \
