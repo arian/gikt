@@ -29,13 +29,15 @@ class Lockfile(private val path: Path) {
         }
 
         ref.use {
+            var throwable: Throwable? = null
             try {
                 consumer(it)
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
+                throwable = e
                 throw e
             } finally {
                 if (!it.done) {
-                    throw StaleLock("Neither `commit` or `rollback` called with open lock")
+                    throw StaleLock("Neither `commit` or `rollback` called with open lock", throwable)
                 }
             }
         }
@@ -72,6 +74,7 @@ class Lockfile(private val path: Path) {
 
         fun rollback() {
             raiseOnStaleLock {
+                it.close()
                 lockPath.delete()
                 done = true
             }
@@ -98,6 +101,6 @@ class Lockfile(private val path: Path) {
 
     class MissingParent(m: String?) : Exception(m)
     class NoPermission(m: String?) : Exception(m)
-    class StaleLock(m: String?) : Exception(m)
+    class StaleLock(m: String?, cause: Throwable? = null) : Exception(m, cause)
     class LockDenied(m: String) : Exception(m)
 }

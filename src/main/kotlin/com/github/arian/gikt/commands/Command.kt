@@ -17,21 +17,26 @@ data class CommandContext(
     val clock: Clock
 )
 
+data class CommandExecution(
+    val ctx: CommandContext,
+    val status: Int
+)
+
 abstract class AbstractCommand(val ctx: CommandContext) {
-    var status: Int = 0
 
     internal abstract fun run()
 
-    fun execute() {
-        try {
+    fun execute(): CommandExecution {
+        val status = try {
             run()
+            0
         } catch (exit: Command.Exit) {
-            status = exit.code
+            exit.code
         }
+        return CommandExecution(ctx, status)
     }
 
     fun exitProcess(code: Int = 0): Nothing {
-        status = code
         throw Command.Exit(code)
     }
 
@@ -49,14 +54,12 @@ object Command {
         "help" to { ctx: CommandContext -> Help(ctx) }
     )
 
-    fun execute(name: String, ctx: CommandContext): AbstractCommand {
+    fun execute(name: String, ctx: CommandContext): CommandExecution {
 
         val command = commands[name]?.invoke(ctx)
             ?: throw Unknown("'$name' is not a gikt command.")
 
-        command.execute()
-
-        return command
+        return command.execute()
     }
 
     class Unknown(msg: String) : Exception(msg)

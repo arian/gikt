@@ -23,7 +23,7 @@ class Add(ctx: CommandContext) : AbstractCommand(ctx) {
                     repository earlier: remove the file manually to continue.
                 """.trimIndent()
             )
-            exitProcess(1)
+            exitProcess(128)
         }
 
         exitProcess(0)

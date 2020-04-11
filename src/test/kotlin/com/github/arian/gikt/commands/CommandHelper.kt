@@ -1,32 +1,49 @@
 package com.github.arian.gikt.commands
 
 import com.github.arian.gikt.Repository
+import com.github.arian.gikt.makeUnExecutable
+import com.github.arian.gikt.makeUnreadable
 import com.github.arian.gikt.mkdirp
 import com.github.arian.gikt.write
-import com.google.common.jimfs.Jimfs
+import com.github.marschall.memoryfilesystem.MemoryFileSystemBuilder
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.Closeable
 import java.io.PrintStream
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Clock
 
-class CommandHelper {
+class CommandHelper : Closeable {
 
     private val root: Path
+    private val fs = MemoryFileSystemBuilder
+        .newLinux()
+        .build()
 
     init {
-        val fs = Jimfs.newFileSystem()
         root = fs.getPath("gitk-repo")
         Files.createDirectory(root)
     }
 
     val repository by lazy { Repository(root) }
 
-    fun writeFile(name: String, contents: String) {
+    override fun close() {
+        fs.close()
+    }
+
+    fun writeFile(name: String, contents: String): Path {
         val path = root.resolve(name)
         path.parent.mkdirp()
         path.write(contents)
+        path.makeUnExecutable()
+        return path
+    }
+
+    fun makeUnreadable(name: String): Path {
+        val path = root.resolve(name)
+        path.makeUnreadable()
+        return path
     }
 
     fun init() {
@@ -38,7 +55,8 @@ class CommandHelper {
         vararg args: String,
         env: Map<String, String> = emptyMap(),
         stdin: ByteArray? = null
-    ): CommandContext {
+    ): CommandTestExecution {
+
         val stderr = ByteArrayOutputStream()
         val stdout = ByteArrayOutputStream()
 
@@ -52,8 +70,18 @@ class CommandHelper {
             clock = Clock.systemDefaultZone()
         )
 
-        Command.execute(name, ctx)
+        val execution = Command.execute(name, ctx)
 
-        return ctx
+        return CommandTestExecution(
+            status = execution.status,
+            stdout = stdout.toString(Charsets.UTF_8),
+            stderr = stderr.toString(Charsets.UTF_8)
+        )
     }
+
+    data class CommandTestExecution(
+        val status: Int,
+        val stderr: String,
+        val stdout: String
+    )
 }

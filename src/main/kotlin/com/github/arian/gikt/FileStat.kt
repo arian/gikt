@@ -24,7 +24,12 @@ data class FileStat(
             }
 
             val ctime = Files.getLastModifiedTime(path).toInstant()
-            val mode = (attrs["mode"] as? Int) ?: 0
+
+            val views = path.fileSystem.supportedFileAttributeViews()
+            val mode = when (views.contains("posix") && Files.isExecutable(path)) {
+                true -> 509 // 0775
+                false -> 420 // 0644
+            }
 
             return FileStat(
                 ctime = ctime.epochSecond,

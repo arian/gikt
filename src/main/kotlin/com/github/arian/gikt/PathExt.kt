@@ -1,11 +1,12 @@
 package com.github.arian.gikt
 
 import java.io.OutputStream
+import java.nio.file.AccessMode
 import java.nio.file.FileAlreadyExistsException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.attribute.FileTime
-import java.nio.file.attribute.PosixFilePermission
+import java.nio.file.attribute.PosixFilePermissions
 import java.time.Instant
 import java.util.stream.Collectors
 
@@ -52,14 +53,25 @@ fun Path.touch(): Path =
         Files.setLastModifiedTime(this, FileTime.from(Instant.now()))
     }
 
+fun Path.checkAccess(accessMode: AccessMode) =
+    also { it.fileSystem.provider().checkAccess(it, accessMode) }
+
 fun Path.makeExecutable(): Path =
     Files.setPosixFilePermissions(
         this,
-        Files.getPosixFilePermissions(this) + setOf(
-            PosixFilePermission.OWNER_EXECUTE,
-            PosixFilePermission.GROUP_EXECUTE,
-            PosixFilePermission.OTHERS_EXECUTE
-        )
+        Files.getPosixFilePermissions(this) + PosixFilePermissions.fromString("--x--x--x")
+    )
+
+fun Path.makeUnExecutable(): Path =
+    Files.setPosixFilePermissions(
+        this,
+        Files.getPosixFilePermissions(this) - PosixFilePermissions.fromString("--x--x--x")
+    )
+
+fun Path.makeUnreadable(): Path =
+    Files.setPosixFilePermissions(
+        this,
+        Files.getPosixFilePermissions(this) - PosixFilePermissions.fromString("r--r--r--")
     )
 
 fun Path.stat(): FileStat = FileStat.of(this)

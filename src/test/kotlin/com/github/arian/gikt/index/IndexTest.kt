@@ -9,10 +9,9 @@ import com.github.arian.gikt.mkdirp
 import com.github.arian.gikt.readBytes
 import com.github.arian.gikt.relativeTo
 import com.github.arian.gikt.stat
+import com.github.arian.gikt.test.FileSystemExtension
 import com.github.arian.gikt.touch
 import com.github.arian.gikt.write
-import com.google.common.jimfs.Configuration
-import com.google.common.jimfs.Jimfs
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicBoolean
@@ -21,8 +20,10 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.api.extension.ExtendWith
 
-class IndexTest {
+@ExtendWith(FileSystemExtension::class)
+class IndexTest(private val fileSystemProvider: FileSystemExtension.FileSystemProvider) {
 
     private lateinit var workspacePath: Path
 
@@ -31,7 +32,7 @@ class IndexTest {
 
     @BeforeEach
     fun before() {
-        val fs = Jimfs.newFileSystem(Configuration.unix().toBuilder().setAttributeViews("unix").build())
+        val fs = fileSystemProvider.get()
         workspacePath = fs.getPath("/gitk-index")
         Files.createDirectory(workspacePath)
     }

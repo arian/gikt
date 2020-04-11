@@ -1,6 +1,6 @@
 package com.github.arian.gikt
 
-import com.google.common.jimfs.Jimfs
+import com.github.arian.gikt.test.FileSystemExtension
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicBoolean
@@ -9,14 +9,16 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.api.extension.ExtendWith
 
-internal class LockfileTest {
+@ExtendWith(FileSystemExtension::class)
+class LockfileTest(private val fileSystemProvider: FileSystemExtension.FileSystemProvider) {
 
     private lateinit var path: Path
 
     @BeforeEach
     fun before() {
-        val fs = Jimfs.newFileSystem()
+        val fs = fileSystemProvider.get()
         path = fs.getPath("temp")
         Files.createDirectory(path)
     }

@@ -2,21 +2,23 @@ package com.github.arian.gikt
 
 import com.github.arian.gikt.database.Blob
 import com.github.arian.gikt.database.Database
-import com.google.common.jimfs.Jimfs
+import com.github.arian.gikt.test.FileSystemExtension
 import java.nio.file.Files
 import java.nio.file.Path
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
 
-class DatabaseTest {
+@ExtendWith(FileSystemExtension::class)
+class DatabaseTest(private val fileSystemProvider: FileSystemExtension.FileSystemProvider) {
 
     private lateinit var workspace: Path
 
     @BeforeEach
     fun before() {
-        val fs = Jimfs.newFileSystem()
+        val fs = fileSystemProvider.get()
         workspace = fs.getPath("gitk-objects")
         Files.createDirectory(workspace)
     }

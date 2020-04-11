@@ -1,6 +1,7 @@
 package com.github.arian.gikt
 
 import java.nio.file.AccessDeniedException
+import java.nio.file.AccessMode
 import java.nio.file.Path
 
 class Workspace(private val rootPath: Path) {
@@ -26,23 +27,23 @@ class Workspace(private val rootPath: Path) {
             p.exists() ->
                 setOf(relative)
             else ->
-                throw MissingFile("pathspec '$relative' did noy match any files")
+                throw MissingFile("pathspec '$relative' did not match any files")
         }
     }
 
     fun readFile(it: Path): ByteArray = try {
-        absolutePath(it).readBytes()
+        absolutePath(it).checkAccess(AccessMode.READ).readBytes()
     } catch (e: AccessDeniedException) {
-        throw NoPermission("open(${it.relativeTo(rootPath)}): Permission denied")
+        throw NoPermission("open('$it'): Permission denied")
     }
 
     fun statFile(it: Path): FileStat = try {
-        absolutePath(it).stat()
+        absolutePath(it).checkAccess(AccessMode.READ).stat()
     } catch (e: AccessDeniedException) {
-        throw NoPermission("stat(${it.relativeTo(rootPath)}): Permission denied")
+        throw NoPermission("stat('$it'): Permission denied")
     }
 
-    fun absolutePath(it: Path): Path = rootPath.resolve(it)
+    private fun absolutePath(it: Path): Path = rootPath.resolve(it)
 
     class MissingFile(msg: String) : Exception(msg)
     class NoPermission(msg: String) : Exception(msg)

@@ -2,8 +2,7 @@ SOURCES=$(shell find src/main -name "*.kt")
 TEST_SOURCES=$(shell find src/test -name "*.kt")
 
 TEST_LIBS=\
-	../gikt-lib/guava-28.2-jre.jar \
-	../gikt-lib/jimfs-1.1.jar
+	../gikt-lib/memoryfilesystem-2.1.0.jar
 
 TEST_LIBS_COMPILE=$(TEST_LIBS) \
 	../gikt-lib/junit-jupiter-api-5.6.0.jar

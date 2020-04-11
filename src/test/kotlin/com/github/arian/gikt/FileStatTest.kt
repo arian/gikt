@@ -1,7 +1,6 @@
 package com.github.arian.gikt
 
-import com.google.common.jimfs.Configuration
-import com.google.common.jimfs.Jimfs
+import com.github.marschall.memoryfilesystem.MemoryFileSystemBuilder
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.attribute.FileTime
@@ -52,7 +51,7 @@ class FileStatTest {
 
     @Test
     fun executable() {
-        val fs = Jimfs.newFileSystem(Configuration.unix().toBuilder().setAttributeViews("unix").build())
+        val fs = MemoryFileSystemBuilder.newLinux().build()
         val path = Files.createDirectory(fs.getPath("gikt"))
 
         val file = Files.createFile(path.resolve("a"))
@@ -64,7 +63,7 @@ class FileStatTest {
 
     @Test
     fun readWhenWindows() {
-        val fs = Jimfs.newFileSystem(Configuration.windows())
+        val fs = MemoryFileSystemBuilder.newWindows().build()
         val path = Files.createDirectory(fs.getPath("gikt-index"))
         val file = Files.createFile(path.resolve("a")).write("hello")
 

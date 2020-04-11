@@ -1,21 +1,22 @@
 package com.github.arian.gikt
 
-import com.google.common.jimfs.Jimfs
+import com.github.arian.gikt.test.FileSystemExtension
 import java.nio.file.Files
 import java.nio.file.Path
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.api.extension.ExtendWith
 
-class WorkspaceTest {
+@ExtendWith(FileSystemExtension::class)
+class WorkspaceTest(private val fileSystemProvider: FileSystemExtension.FileSystemProvider) {
 
     private lateinit var path: Path
 
     @BeforeEach
     fun before() {
-        val fs = Jimfs.newFileSystem()
-        path = fs.getPath("gitk-workspace")
+        path = fileSystemProvider.get().getPath("gitk-workspace")
         Files.createDirectory(path)
     }
 
@@ -54,12 +55,12 @@ class WorkspaceTest {
 
         assertEquals(
             listOf(
+                "a.txt",
                 "a/b/c/d.txt",
                 "a/d.txt",
-                "a.txt",
                 "b.txt"
             ),
-            files
+            files.sorted()
         )
     }
 
@@ -102,8 +103,33 @@ class WorkspaceTest {
     @Test
     fun `listFiles throws for non-existing file`() {
         val workspace = Workspace(path)
-        assertThrows<Workspace.MissingFile> {
+        val exception = assertThrows<Workspace.MissingFile> {
             workspace.listFiles(path.resolve("blabla"))
         }
+        assertEquals("pathspec 'blabla' did not match any files", exception.message)
+    }
+
+    @Test
+    fun `readFile throws exception when access denied`() {
+        val workspace = Workspace(path)
+        val file = path.resolve("secret.txt").touch().makeUnreadable()
+
+        val exception = assertThrows<Workspace.NoPermission> {
+            workspace.readFile(file.relativeTo(path))
+        }
+
+        assertEquals("open('secret.txt'): Permission denied", exception.message)
+    }
+
+    @Test
+    fun `statFile throws exception when access denied`() {
+        val workspace = Workspace(path)
+        val file = path.resolve("secret.txt").touch().makeUnreadable()
+
+        val exception = assertThrows<Workspace.NoPermission> {
+            workspace.statFile(file.relativeTo(path))
+        }
+
+        assertEquals("stat('secret.txt'): Permission denied", exception.message)
     }
 }
