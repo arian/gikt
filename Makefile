@@ -40,6 +40,9 @@ lint: $(SOURCES) $(TEST_SOURCES)
 format: $(SOURCES) $(TEST_SOURCES)
 	../gikt-lib/ktlint --color --format $^
 
+backup:
+	cp -rf .git "../gikt-backups/gikt-git-$(shell date '+%Y-%m-%d-%H%M')"
+
 clean:
 	rm -f gikt.jar
 	rm -f gikt-test.jar

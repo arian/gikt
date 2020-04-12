@@ -13,8 +13,12 @@ data class FileStat(
     val uid: Int = 1000,
     val gid: Int = 1000,
     val size: Long = 0,
-    val executable: Boolean
+    val executable: Boolean = false,
+    val directory: Boolean = false
 ) {
+
+    val file = !directory
+
     companion object {
         fun of(path: Path): FileStat {
             val attrs: Map<String, Any> = try {
@@ -43,7 +47,8 @@ data class FileStat(
                 gid = attrs["gid"] as? Int ?: 1000,
                 size = Files.size(path),
                 // bitmask all executable bits. 73 is 0111 in octal
-                executable = mode and 73 == 73
+                executable = mode and 73 == 73,
+                directory = Files.isDirectory(path)
             )
         }
     }

@@ -3,7 +3,7 @@ package com.github.arian.gikt.index
 import com.github.arian.gikt.FileStat
 import com.github.arian.gikt.Lockfile
 import com.github.arian.gikt.database.ObjectId
-import com.github.arian.gikt.parents
+import com.github.arian.gikt.parentPaths
 import java.io.Closeable
 import java.nio.ByteBuffer
 import java.nio.file.Files
@@ -189,7 +189,7 @@ class Index(private val pathname: Path) {
     }
 
     private fun discardConflicts(path: Path) {
-        path.parents().forEach { removeEntry(it.toString()) }
+        path.parentPaths().forEach { removeEntry(it.toString()) }
         parents[path.toString()]?.forEach { removeEntry(it) }
     }
 
@@ -234,7 +234,9 @@ class Index(private val pathname: Path) {
     class Loaded internal constructor(private val index: Index) {
         fun forEach(fn: (Entry) -> Unit) = index.forEach(fn)
         fun toList() = index.toList()
-        fun tracked(it: Path): Boolean = index.entries.containsKey(it.toString())
+        fun tracked(it: Path): Boolean =
+            index.entries.containsKey(it.toString()) ||
+                index.parents.containsKey(it.toString())
     }
 
     fun load(): Loaded {
@@ -297,7 +299,7 @@ class Index(private val pathname: Path) {
         keys.add(entry.key)
         entries = entries + (entry.key to entry)
 
-        Path.of(entry.key).parents().forEach {
+        Path.of(entry.key).parentPaths().forEach {
             val dir = it.toString()
             val value = parents.getOrDefault(dir, emptySet()) + entry.key
             parents = parents + (dir to value)
@@ -310,7 +312,7 @@ class Index(private val pathname: Path) {
         keys.remove(entry.key)
         entries = entries - entry.key
 
-        Path.of(entry.key).parents().forEach {
+        Path.of(entry.key).parentPaths().forEach {
             val dir = it.toString()
             val value = parents[dir]
             if (value != null) {

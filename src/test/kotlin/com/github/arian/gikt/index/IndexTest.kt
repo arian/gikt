@@ -47,10 +47,15 @@ class IndexTest(private val fileSystemProvider: FileSystemExtension.FileSystemPr
         val index = Index(indexPath).loadForUpdate {
             add(rel("alice.txt"), oid, stat)
             add(rel("bob.txt"), oid, stat)
+            add(rel("nested/inner/clara.txt"), oid, stat)
             writeUpdates()
         }
 
-        assertEquals(listOf("alice.txt", "bob.txt"), index.load().toList().map { it.key })
+        val loaded = index.load()
+        assertEquals(listOf("alice.txt", "bob.txt", "nested/inner/clara.txt"), loaded.toList().map { it.key })
+        assertTrue(loaded.tracked(rel("alice.txt")))
+        assertTrue(loaded.tracked(rel("bob.txt")))
+        assertTrue(loaded.tracked(rel("nested/inner")))
     }
 
     @Test

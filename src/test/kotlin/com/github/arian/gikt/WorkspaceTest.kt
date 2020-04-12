@@ -110,6 +110,49 @@ class WorkspaceTest(private val fileSystemProvider: FileSystemExtension.FileSyst
     }
 
     @Test
+    fun `listDir lists files in a directory`() {
+        path.resolve("a.txt").touch()
+        path.resolve("b.txt").touch()
+        path.resolve(".git").mkdirp()
+        path.resolve("a/b").mkdirp()
+
+        val workspace = Workspace(path)
+
+        val files = workspace.listDir()
+            .map { (p, stat) -> p.toString() to stat.directory }
+            .toMap()
+            .toSortedMap()
+
+        assertEquals(
+            mapOf(
+                "a" to true,
+                "a.txt" to false,
+                "b.txt" to false
+            ),
+            files
+        )
+    }
+
+    @Test
+    fun `listDir lists files in a directory with argument, result path are relative to the root`() {
+        path.resolve("lib").mkdirp()
+        path.resolve("lib/a.txt").touch()
+        path.resolve("lib/b.txt").touch()
+        path.resolve("lib/.git").mkdirp()
+        path.resolve("lib/a/b").mkdirp()
+
+        val workspace = Workspace(path)
+
+        val files = workspace.listDir(path.resolve("lib").relativeTo(path))
+            .map { (p, _) -> p.toString() }
+
+        assertEquals(
+            listOf("lib/a", "lib/a.txt", "lib/b.txt"),
+            files
+        )
+    }
+
+    @Test
     fun `readFile throws exception when access denied`() {
         val workspace = Workspace(path)
         val file = path.resolve("secret.txt").touch().makeUnreadable()

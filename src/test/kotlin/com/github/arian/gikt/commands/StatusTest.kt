@@ -15,7 +15,7 @@ class StatusTest {
 
     private fun assertStatus(output: String) {
         val execution = cmd.cmd("status")
-        assertEquals("$output\n", execution.stdout)
+        assertEquals(output, execution.stdout.trimEnd())
         assertEquals(0, execution.status)
     }
 
@@ -26,8 +26,8 @@ class StatusTest {
 
         assertStatus(
             """
-            ?? another.txt
-            ?? file.txt
+                ?? another.txt
+                ?? file.txt
             """.trimIndent()
         )
     }
@@ -42,7 +42,53 @@ class StatusTest {
 
         assertStatus(
             """
-            ?? file.txt
+                ?? file.txt
+            """.trimIndent()
+        )
+    }
+
+    @Test
+    fun `lists untracked directories, not their contents`() {
+        cmd.writeFile("file.txt", "")
+        cmd.writeFile("dir/another.txt", "")
+
+        assertStatus(
+            """
+                ?? dir/
+                ?? file.txt
+            """.trimIndent()
+        )
+    }
+
+    @Test
+    fun `lists untracked files inside tracked directories`() {
+        cmd.writeFile("a/b/inner.txt", "")
+        cmd.cmd("add", ".")
+        cmd.commit("commit message")
+
+        cmd.writeFile("a/outer.txt", "")
+        cmd.writeFile("a/b/c/file.txt", "")
+
+        assertStatus(
+            """
+                ?? a/b/c/
+                ?? a/outer.txt
+            """.trimIndent()
+        )
+    }
+
+    @Test
+    fun `does not list empty untracked directories`() {
+        cmd.mkdir("outer")
+        assertStatus("")
+    }
+
+    @Test
+    fun `lists untracked directories that indirectly contain files`() {
+        cmd.writeFile("outer/inner/file.txt", "")
+        assertStatus(
+            """
+                ?? outer/
             """.trimIndent()
         )
     }

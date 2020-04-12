@@ -21,8 +21,19 @@ fun Path.listFiles(): List<Path> = Files.list(this).collect(Collectors.toList())
  */
 fun Path.relativeTo(other: Path): Path = other.relativize(this)
 
+/**
+ * A list of the names of the parent directories.
+ * `Path.of("a/b/c")` would return `listOf(Path.of("a"), Path.of("b"))`
+ */
 fun Path.parents(): List<Path> =
-    (0 until nameCount).map { getName(it) }.dropLast(1)
+    (0 until nameCount - 1).map { getName(it) }
+
+/**
+ * A list of the names of the parent directories.
+ * `Path.of("a/b/c")` would return `listOf(Path.of("a"), Path.of("a/b"))`
+ */
+fun Path.parentPaths(): List<Path> =
+    (1 until nameCount).map { subpath(0, it) }
 
 fun Path.readBytes(): ByteArray = Files.readAllBytes(this)
 

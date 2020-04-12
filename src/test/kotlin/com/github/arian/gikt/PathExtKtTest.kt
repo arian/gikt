@@ -22,6 +22,22 @@ internal class PathExtKtTest {
     }
 
     @Test
+    fun parents() {
+        assertEquals(
+            listOf("a", "b", "c", "d"),
+            Path.of("a/b/c/d/e").parents().map { it.toString() }
+        )
+    }
+
+    @Test
+    fun parentsPaths() {
+        assertEquals(
+            listOf("a", "a/b", "a/b/c", "a/b/c/d"),
+            Path.of("a/b/c/d/e").parentPaths().map { it.toString() }
+        )
+    }
+
+    @Test
     fun makeExecutable() {
         val fs = MemoryFileSystemBuilder.newLinux().build()
         val dir = Files.createDirectory(fs.getPath("source-directory"))

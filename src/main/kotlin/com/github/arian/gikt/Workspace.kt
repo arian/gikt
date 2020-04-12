@@ -31,6 +31,22 @@ class Workspace(private val rootPath: Path) {
         }
     }
 
+    fun listDir() = listDirIntern(rootPath)
+
+    fun listDir(path: Path) = listDirIntern(absolutePath(path))
+
+    private fun listDirIntern(path: Path): Map<Path, FileStat> {
+        val ignore = ignores(path) + rootIgnores
+        val entries = path.listFiles().toSet() - ignore
+
+        return entries
+            .map {
+                val p = it.relativeTo(rootPath)
+                p to statFile(p)
+            }
+            .toMap()
+    }
+
     fun readFile(it: Path): ByteArray = try {
         absolutePath(it).checkAccess(AccessMode.READ).readBytes()
     } catch (e: AccessDeniedException) {

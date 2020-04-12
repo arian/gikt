@@ -32,9 +32,13 @@ class CommandHelper : Closeable {
         fs.close()
     }
 
+    fun mkdir(name: String): Path {
+        return root.resolve(name).mkdirp()
+    }
+
     fun writeFile(name: String, contents: String): Path {
         val path = root.resolve(name)
-        path.parent.mkdirp()
+        path.parent?.mkdirp()
         path.write(contents)
         path.makeUnExecutable()
         return path
