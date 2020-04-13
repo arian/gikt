@@ -1,6 +1,9 @@
 package com.github.arian.gikt.commands
 
 import com.github.arian.gikt.Repository
+import com.github.arian.gikt.delete
+import com.github.arian.gikt.deleteRecursively
+import com.github.arian.gikt.isDirectory
 import com.github.arian.gikt.makeExecutable
 import com.github.arian.gikt.makeUnExecutable
 import com.github.arian.gikt.makeUnreadable
@@ -52,6 +55,14 @@ class CommandHelper : Closeable {
 
     fun touch(name: String): Path =
         root.resolve(name).touch()
+
+    fun delete(name: String): Path =
+        root.resolve(name).let {
+            when {
+                it.isDirectory() -> it.deleteRecursively()
+                else -> it.delete()
+            }
+        }
 
     fun init() {
         cmd("init")

@@ -51,11 +51,13 @@ fun Path.outputStream(): OutputStream = Files.newOutputStream(this)
 
 fun Path.renameTo(to: Path): Path = Files.move(this, to)
 
-fun Path.delete(): Unit = Files.delete(this)
+fun Path.delete(): Path = apply { Files.delete(this) }
 
-fun Path.deleteRecursively(): Unit = Files.walk(this)
-    .sorted(Comparator.reverseOrder())
-    .forEach { Files.delete(it) }
+fun Path.deleteRecursively(): Path = apply {
+    Files.walk(this)
+        .sorted(Comparator.reverseOrder())
+        .forEach { Files.delete(it) }
+}
 
 fun Path.touch(): Path =
     try {

@@ -149,5 +149,26 @@ class StatusTest {
             assertStatus("")
             assertStatus("")
         }
+
+        @Test
+        fun `reports deleted files`() {
+            cmd.delete("a/2.txt")
+            assertStatus(
+                """
+                    | D a/2.txt
+                """.trimMargin()
+            )
+        }
+
+        @Test
+        fun `reports files in deleted directories`() {
+            cmd.delete("a")
+            assertStatus(
+                """
+                    | D a/2.txt
+                    | D a/b/3.txt
+                """.trimMargin()
+            )
+        }
     }
 }
