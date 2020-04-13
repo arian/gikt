@@ -6,13 +6,13 @@ import java.util.zip.Inflater
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
-class GiktKtTest {
-
+class ByteArrayExtKtTest {
     @Test
     fun sha1Test() {
         assertEquals(
             "56170f5429b35dea081bb659b884b475ca9329a9",
-            "hi there".toByteArray().sha1().toHexString())
+            "hi there".toByteArray().sha1().toHexString()
+        )
     }
 
     @Test
@@ -31,5 +31,14 @@ class GiktKtTest {
         }
 
         assertEquals("hello", result.toString(Charsets.UTF_8))
+    }
+
+    @Test
+    fun `deflate inflate roundtrip`() {
+        val hello = "hello".toByteArray()
+            .deflate()
+            .inflate()
+            .toString(Charsets.UTF_8)
+        assertEquals("hello", hello)
     }
 }

@@ -81,6 +81,10 @@ class Tree(
                 entries.forEach { addEntry(Parents(it.parents), it) }
             }
         }
+
+        fun parse(root: Path): Tree {
+            return Tree(root)
+        }
     }
 
     data class Parents(val ps: List<Path> = emptyList()) {

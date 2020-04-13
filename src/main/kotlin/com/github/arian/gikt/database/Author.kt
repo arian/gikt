@@ -1,14 +1,40 @@
 package com.github.arian.gikt.database
 
+import java.time.Instant
+import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+import kotlin.math.max
 
 private val zoneFormatter = DateTimeFormatter.ofPattern("Z")
 
-class Author(private val name: String, private val email: String, private val now: ZonedDateTime) {
+data class Author(private val name: String, private val email: String, private val now: ZonedDateTime) {
 
     override fun toString(): String {
         val timestamp = "${now.toEpochSecond()} ${zoneFormatter.format(now)}"
         return "$name <$email> $timestamp"
+    }
+
+    override fun equals(other: Any?): Boolean =
+        when (other) {
+            is Author -> other.toString() == toString()
+            else -> false
+        }
+
+    override fun hashCode(): Int =
+        toString().hashCode()
+
+    companion object {
+        fun parse(line: String): Author {
+            val open = line.indexOf("<")
+            val close = max(open, line.indexOf(">"))
+            val name = line.slice(0 until open).trim()
+            val email = line.slice(open + 1 until close).trim()
+            val time = line.slice(close + 2 until line.length).trim().split(" ", limit = 2)
+            val timestamp = Instant.ofEpochSecond(time[0].toLong())
+            val zone = ZoneId.of(time[1])
+            val now = ZonedDateTime.ofInstant(timestamp, zone)
+            return Author(name = name, email = email, now = now)
+        }
     }
 }

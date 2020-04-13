@@ -1,11 +1,14 @@
 package com.github.arian.gikt.database
 
+import com.github.arian.gikt.utf8
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 
 class CommitTest {
 
@@ -28,7 +31,8 @@ class CommitTest {
             |committer arian <arian@example.com> 1565777302 +0200
             |
             |hello
-            """.trimMargin(), commit.data.toString(Charsets.UTF_8)
+            """.trimMargin(),
+            commit.data.utf8()
         )
     }
 
@@ -58,5 +62,31 @@ class CommitTest {
               |hello
               """.trimMargin(), commit.data.toString(Charsets.UTF_8)
         )
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["", "28e5b0ff3555872675b84c7c0d0119d8899743f1"])
+    fun parseCommit(parentHex: String) {
+        val parent = parentHex.takeIf { it.isNotBlank() }?.let { ObjectId(it) }
+        val tree = ObjectId("28e5b0ff3555872675b84c7c0d0119d8899743f0")
+
+        val zoneId = ZoneId.of("Europe/Amsterdam")
+        val author = Author(
+            "arian",
+            "arian@example.com",
+            ZonedDateTime.now(Clock.fixed(Instant.parse("2019-08-14T10:08:22.00Z"), zoneId))
+        )
+
+        val message = "hello\nfoo\n\nlast\n"
+        val commit = Commit(parent, tree, author, message.toByteArray())
+
+        val bytes = commit.content.sliceArray(11 until commit.content.size)
+        val parsed = Commit.parse(bytes)
+
+        assertEquals(parent, parsed.parent)
+        assertEquals(tree, parsed.tree)
+        assertEquals(author, parsed.author)
+        assertEquals(message, parsed.message.utf8())
+        assertEquals(commit, parsed)
     }
 }

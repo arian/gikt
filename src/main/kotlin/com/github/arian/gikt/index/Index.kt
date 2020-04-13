@@ -4,6 +4,7 @@ import com.github.arian.gikt.FileStat
 import com.github.arian.gikt.Lockfile
 import com.github.arian.gikt.database.ObjectId
 import com.github.arian.gikt.parentPaths
+import com.github.arian.gikt.utf8
 import java.io.Closeable
 import java.nio.ByteBuffer
 import java.nio.file.Files
@@ -32,8 +33,6 @@ private fun Long.to32Bit(): ByteArray =
 
 private fun Int.to16Bit(): ByteArray =
     ByteBuffer.allocate(2).also { it.putShort(toShort()) }.array()
-
-private fun ByteArray.utf8() = toString(Charsets.UTF_8)
 
 private fun ByteArray.from32Bit(): Int =
     if (size == 4) {

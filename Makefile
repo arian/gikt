@@ -5,7 +5,8 @@ TEST_LIBS=\
 	../gikt-lib/memoryfilesystem-2.1.0.jar
 
 TEST_LIBS_COMPILE=$(TEST_LIBS) \
-	../gikt-lib/junit-jupiter-api-5.6.0.jar
+	../gikt-lib/junit-jupiter-api-5.6.0.jar \
+	../gikt-lib/junit-jupiter-params-5.6.2.jar
 
 TEST_CLASSPATH_COMPILE=$(shell echo $(TEST_LIBS_COMPILE) | tr ' ' ':')
 
