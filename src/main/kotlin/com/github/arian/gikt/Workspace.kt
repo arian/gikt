@@ -47,19 +47,25 @@ class Workspace(private val rootPath: Path) {
             .toMap()
     }
 
-    fun readFile(it: Path): ByteArray = try {
-        absolutePath(it).checkAccess(AccessMode.READ).readBytes()
+    fun readFile(it: String): ByteArray = readFileChecked(absolutePath(it))
+    fun readFile(it: Path): ByteArray = readFileChecked(absolutePath(it))
+
+    private fun readFileChecked(it: Path): ByteArray = try {
+        it.checkAccess(AccessMode.READ).readBytes()
     } catch (e: AccessDeniedException) {
-        throw NoPermission("open('$it'): Permission denied")
+        throw NoPermission("open('${it.relativeTo(rootPath)}'): Permission denied")
     }
 
-    fun statFile(it: Path): FileStat = try {
-        absolutePath(it).checkAccess(AccessMode.READ).stat()
+    fun statFile(it: Path): FileStat = statFileChecked(absolutePath(it))
+
+    private fun statFileChecked(it: Path): FileStat = try {
+        it.checkAccess(AccessMode.READ).stat()
     } catch (e: AccessDeniedException) {
-        throw NoPermission("stat('$it'): Permission denied")
+        throw NoPermission("stat('${it.relativeTo(rootPath)}'): Permission denied")
     }
 
     private fun absolutePath(it: Path): Path = rootPath.resolve(it)
+    private fun absolutePath(it: String): Path = rootPath.resolve(it)
 
     class MissingFile(msg: String) : Exception(msg)
     class NoPermission(msg: String) : Exception(msg)

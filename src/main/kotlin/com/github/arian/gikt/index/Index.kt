@@ -60,11 +60,7 @@ data class Entry(
 
     constructor(path: Path, oid: ObjectId, stat: FileStat) : this(path.toString(), oid, stat)
 
-    private val mode = when (stat.executable) {
-        true -> EXECUTABLE_MODE
-        false -> REGULAR_MODE
-    }
-
+    private val mode = modeForStat(stat)
     private val pathBytes = key.toByteArray()
     private val flags = min(pathBytes.size, MAX_PATH_SIZE)
 
@@ -127,6 +123,22 @@ data class Entry(
 
             return Entry(pathBytes.utf8(), oid, stat)
         }
+
+        private fun modeForStat(stat: FileStat) =
+            when (stat.executable) {
+                true -> EXECUTABLE_MODE
+                false -> REGULAR_MODE
+            }
+    }
+
+    fun statMatch(stat: FileStat): Boolean {
+        return mode == modeForStat(stat) &&
+            (this.stat.size == 0L || this.stat.size == stat.size)
+    }
+
+    fun timesMatch(stat: FileStat): Boolean {
+        return this.stat.ctime == stat.ctime && this.stat.ctimeNS == stat.ctimeNS &&
+            this.stat.mtime == stat.mtime && this.stat.mtimeNS == stat.mtimeNS
     }
 }
 
@@ -193,11 +205,21 @@ class Index(private val pathname: Path) {
         parents[path.toString()]?.forEach { removeEntry(it) }
     }
 
+    private fun updateEntryStat(key: String, stat: FileStat) {
+        entries[key]?.also {
+            entries = entries + (key to it.copy(stat = stat))
+            changed = true
+        }
+    }
+
     private fun toList(): List<Entry> =
         keys.map { requireNotNull(entries[it]) }.toList()
 
     private fun forEach(fn: (Entry) -> Unit) =
         toList().forEach(fn)
+
+    private fun tracked(it: Path) =
+        entries.containsKey(it.toString()) || parents.containsKey(it.toString())
 
     private fun writeUpdates(lock: Lockfile.Ref) {
         if (!changed) {
@@ -217,26 +239,24 @@ class Index(private val pathname: Path) {
         lock.commit()
     }
 
-    class Updater internal constructor(private val index: Index, private val lock: Lockfile.Ref) {
+    class Updater internal constructor(private val index: Index, private val lock: Lockfile.Ref) : Loaded(index) {
         fun add(path: Path, oid: ObjectId, stat: FileStat) = index.add(path, oid, stat)
+        fun updateEntryStat(key: String, stat: FileStat) = index.updateEntryStat(key, stat)
         fun writeUpdates() = index.writeUpdates(lock)
         fun rollback() = lock.rollback()
     }
 
-    fun loadForUpdate(action: Updater.() -> Unit): Index {
-        lockfile.holdForUpdate {
+    fun <T> loadForUpdate(action: Updater.() -> T): T {
+        return lockfile.holdForUpdate {
             load(it.path)
             action(Updater(this, it))
         }
-        return this
     }
 
-    class Loaded internal constructor(private val index: Index) {
+    open class Loaded internal constructor(private val index: Index) {
         fun forEach(fn: (Entry) -> Unit) = index.forEach(fn)
         fun toList() = index.toList()
-        fun tracked(it: Path): Boolean =
-            index.entries.containsKey(it.toString()) ||
-                index.parents.containsKey(it.toString())
+        fun tracked(it: Path): Boolean = index.tracked(it)
     }
 
     fun load(): Loaded {

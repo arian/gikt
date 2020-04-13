@@ -17,7 +17,7 @@ class Lockfile(private val path: Path) {
         resolveSibling("$fileName.lock")
     }
 
-    fun holdForUpdate(consumer: (Ref) -> Unit = {}): Boolean {
+    fun <T> holdForUpdate(consumer: (Ref) -> T): T {
         val ref = try {
             Ref(this)
         } catch (e: FileAlreadyExistsException) {
@@ -31,7 +31,7 @@ class Lockfile(private val path: Path) {
         ref.use {
             var throwable: Throwable? = null
             try {
-                consumer(it)
+                return consumer(it)
             } catch (e: Throwable) {
                 throwable = e
                 throw e
@@ -41,8 +41,6 @@ class Lockfile(private val path: Path) {
                 }
             }
         }
-
-        return true
     }
 
     class Ref internal constructor(private val lockfile: Lockfile) : Closeable {

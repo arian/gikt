@@ -30,6 +30,7 @@ class LockfileTest(private val fileSystemProvider: FileSystemExtension.FileSyste
         val success = lock.holdForUpdate {
             assertEquals(path.resolve("a.txt.lock"), lock.lockPath)
             it.rollback()
+            true
         }
         assertTrue(success)
     }
@@ -59,7 +60,7 @@ class LockfileTest(private val fileSystemProvider: FileSystemExtension.FileSyste
     fun missingParent() {
         val file = path.resolve("a/b/c.txt")
         val lock = Lockfile(file)
-        assertThrows<Lockfile.MissingParent> { lock.holdForUpdate() }
+        assertThrows<Lockfile.MissingParent> { lock.holdForUpdate { } }
     }
 
     @Test
@@ -107,7 +108,7 @@ class LockfileTest(private val fileSystemProvider: FileSystemExtension.FileSyste
         val file = path.resolve("a.txt").touch()
         path.resolve("a.txt.lock").touch()
         val lock = Lockfile(file)
-        assertThrows<Lockfile.LockDenied> { lock.holdForUpdate() }
+        assertThrows<Lockfile.LockDenied> { lock.holdForUpdate {} }
     }
 
     @Test
@@ -119,7 +120,7 @@ class LockfileTest(private val fileSystemProvider: FileSystemExtension.FileSyste
 
         lock.holdForUpdate {
             one.set(true)
-            assertThrows<Lockfile.LockDenied> { lock.holdForUpdate() }
+            assertThrows<Lockfile.LockDenied> { lock.holdForUpdate {} }
             it.rollback()
         }
 

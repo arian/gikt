@@ -44,7 +44,9 @@ class IndexTest(private val fileSystemProvider: FileSystemExtension.FileSystemPr
     @Test
     fun `new index`() {
         val indexPath = workspacePath.resolve("index")
-        val index = Index(indexPath).loadForUpdate {
+        val index = Index(indexPath)
+
+        index.loadForUpdate {
             add(rel("alice.txt"), oid, stat)
             add(rel("bob.txt"), oid, stat)
             add(rel("nested/inner/clara.txt"), oid, stat)

@@ -26,6 +26,9 @@ commit: test lint gikt.jar
 	GIT_AUTHOR_NAME=arian \
 	java -jar gikt.jar commit
 
+status: gikt.jar
+	java -jar gikt.jar status
+
 test: gikt-test.jar
 	java -jar ../gikt-lib/junit-platform-console-standalone-1.6.1.jar \
 		-classpath $(TEST_CLASSPATH_RUN):gikt.jar:gikt-test.jar \

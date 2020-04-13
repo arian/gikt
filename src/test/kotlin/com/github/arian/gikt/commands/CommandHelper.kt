@@ -1,9 +1,11 @@
 package com.github.arian.gikt.commands
 
 import com.github.arian.gikt.Repository
+import com.github.arian.gikt.makeExecutable
 import com.github.arian.gikt.makeUnExecutable
 import com.github.arian.gikt.makeUnreadable
 import com.github.arian.gikt.mkdirp
+import com.github.arian.gikt.touch
 import com.github.arian.gikt.write
 import com.github.marschall.memoryfilesystem.MemoryFileSystemBuilder
 import java.io.ByteArrayInputStream
@@ -32,23 +34,24 @@ class CommandHelper : Closeable {
         fs.close()
     }
 
-    fun mkdir(name: String): Path {
-        return root.resolve(name).mkdirp()
-    }
+    fun mkdir(name: String): Path =
+        root.resolve(name).mkdirp()
 
-    fun writeFile(name: String, contents: String): Path {
-        val path = root.resolve(name)
-        path.parent?.mkdirp()
-        path.write(contents)
-        path.makeUnExecutable()
-        return path
-    }
+    fun writeFile(name: String, contents: String): Path =
+        root.resolve(name).apply {
+            parent?.mkdirp()
+            write(contents)
+            makeUnExecutable()
+        }
 
-    fun makeUnreadable(name: String): Path {
-        val path = root.resolve(name)
-        path.makeUnreadable()
-        return path
-    }
+    fun makeUnreadable(name: String): Path =
+        root.resolve(name).makeUnreadable()
+
+    fun makeExecutable(name: String): Path =
+        root.resolve(name).makeExecutable()
+
+    fun touch(name: String): Path =
+        root.resolve(name).touch()
 
     fun init() {
         cmd("init")

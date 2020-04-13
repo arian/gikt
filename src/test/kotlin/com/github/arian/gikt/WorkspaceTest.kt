@@ -165,6 +165,17 @@ class WorkspaceTest(private val fileSystemProvider: FileSystemExtension.FileSyst
     }
 
     @Test
+    fun `readFile by string filename`() {
+        val workspace = Workspace(path)
+        path.resolve("world.txt").write("hello")
+
+        assertEquals(
+            "hello",
+            workspace.readFile("world.txt").toString(Charsets.UTF_8)
+        )
+    }
+
+    @Test
     fun `statFile throws exception when access denied`() {
         val workspace = Workspace(path)
         val file = path.resolve("secret.txt").touch().makeUnreadable()
