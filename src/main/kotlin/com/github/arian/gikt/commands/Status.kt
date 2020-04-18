@@ -12,40 +12,45 @@ import com.github.arian.gikt.index.Entry
 import com.github.arian.gikt.index.Index
 import com.github.arian.gikt.relativeTo
 import java.nio.file.Path
+import java.util.SortedMap
+import java.util.SortedSet
 
 class Status(ctx: CommandContext) : AbstractCommand(ctx) {
 
     private data class Changes internal constructor(
-        private val workspaceDeleted: Set<String> = emptySet(),
-        private val workspaceModified: Set<String> = emptySet(),
-        private val indexAdded: Set<String> = emptySet(),
-        private val indexModified: Set<String> = emptySet(),
-        private val indexDeleted: Set<String> = emptySet()
+        private val workspace: SortedMap<String, ChangeType> = sortedMapOf(),
+        private val index: SortedMap<String, ChangeType> = sortedMapOf()
     ) {
+
+        enum class ChangeType(val short: String) {
+            MODIFIED("M"),
+            ADDED("A"),
+            DELETED("D")
+        }
+
         operator fun plus(other: Changes) =
             copy(
-                workspaceDeleted = workspaceDeleted + other.workspaceDeleted,
-                workspaceModified = workspaceModified + other.workspaceModified,
-                indexAdded = indexAdded + other.indexAdded,
-                indexModified = indexModified + other.indexModified,
-                    indexDeleted = indexDeleted + other.indexDeleted
+                workspace = (workspace + other.workspace).toSortedMap(),
+                index = (index + other.index).toSortedMap()
             )
 
         companion object {
-            fun workspaceDeleted(key: String) = Changes(workspaceDeleted = setOf(key))
-            fun workspaceModified(key: String) = Changes(workspaceModified = setOf(key))
-            fun indexAdded(key: String) = Changes(indexAdded = setOf(key))
-            fun indexModified(key: String) = Changes(indexModified = setOf(key))
-            fun indexDeleted(key: String) = Changes(indexDeleted = setOf(key))
+            private fun single(pair: Pair<String, ChangeType>) = mapOf(pair).toSortedMap()
+
+            fun workspaceDeleted(key: String) = Changes(workspace = single(key to ChangeType.DELETED))
+            fun workspaceModified(key: String) = Changes(workspace = single(key to ChangeType.MODIFIED))
+            fun indexAdded(key: String) = Changes(index = single(key to ChangeType.ADDED))
+            fun indexModified(key: String) = Changes(index = single(key to ChangeType.MODIFIED))
+            fun indexDeleted(key: String) = Changes(index = single(key to ChangeType.DELETED))
             fun empty() = Changes()
         }
 
-        fun all() = workspaceDeleted + workspaceModified + indexAdded + indexModified + indexDeleted
-        fun isWorkspaceModified(key: String) = workspaceModified.contains(key)
-        fun isWorkspaceDeleted(key: String) = workspaceDeleted.contains(key)
-        fun isIndexAdded(key: String) = indexAdded.contains(key)
-        fun isIndexModified(key: String) = indexModified.contains(key)
-        fun isIndexDeleted(key: String) = indexDeleted.contains(key)
+        fun all(): SortedSet<String> = (workspaceChanges() + indexChanges()).toSortedSet()
+        fun workspaceChanges() = workspace.keys
+        fun indexChanges() = index.keys
+
+        fun indexType(key: String) = index[key]
+        fun workspaceType(key: String) = workspace[key]
     }
 
     private data class Scan(
@@ -70,7 +75,10 @@ class Status(ctx: CommandContext) : AbstractCommand(ctx) {
                     .also { writeUpdates() }
             }
 
-        printResults(scan)
+        when (ctx.args.firstOrNull()) {
+            "--porcelain" -> printResults(scan)
+            else -> printLongFormat(scan)
+        }
 
         exitProcess(0)
     }
@@ -203,28 +211,68 @@ class Status(ctx: CommandContext) : AbstractCommand(ctx) {
     }
 
     private fun printResults(scan: Scan) {
-
         (scan.changes.all())
-            .sorted()
             .forEach { println("${statusFor(scan, it)} $it") }
 
         scan.untracked
-            .sorted()
+            .toSortedSet()
             .forEach { println("?? $it") }
     }
 
     private fun statusFor(scan: Scan, key: String): String {
-        val left = when {
-            scan.changes.isIndexAdded(key) -> "A"
-            scan.changes.isIndexModified(key) -> "M"
-            scan.changes.isIndexDeleted(key) -> "D"
-            else -> " "
-        }
-        val right = when {
-            scan.changes.isWorkspaceModified(key) -> "M"
-            scan.changes.isWorkspaceDeleted(key) -> "D"
-            else -> " "
-        }
+        val left = scan.changes.indexType(key)?.short ?: " "
+        val right = scan.changes.workspaceType(key)?.short ?: " "
         return "$left$right"
+    }
+
+    private fun printLongFormat(scan: Scan) {
+        printChanges(
+            "Changes to be committed",
+            scan.changes.indexChanges()
+        ) { longStatus(scan.changes.indexType(it)) }
+
+        printChanges(
+            "Changes not staged for commit",
+            scan.changes.workspaceChanges()
+        ) { longStatus(scan.changes.workspaceType(it)) }
+
+        printChanges("Untracked files", scan.untracked) { "" }
+
+        printCommitStatus(scan)
+    }
+
+    private fun longStatus(status: Changes.ChangeType?): String {
+        return when (status) {
+            Changes.ChangeType.ADDED -> "new file:"
+            Changes.ChangeType.DELETED -> "deleted:"
+            Changes.ChangeType.MODIFIED -> "modified:"
+            null -> ""
+        }
+    }
+
+    private fun printChanges(message: String, changeset: Set<String>, type: (String) -> String) {
+
+        if (changeset.isEmpty()) {
+            return
+        }
+
+        println("$message:")
+        println("")
+
+        changeset.forEach {
+            val status = type(it).padEnd(12)
+            println("\t$status$it")
+        }
+
+        println("")
+    }
+
+    private fun printCommitStatus(scan: Scan) {
+        when {
+            scan.changes.indexChanges().isNotEmpty() -> return
+            scan.changes.workspaceChanges().isNotEmpty() -> println("no changes added to commit")
+            scan.untracked.isNotEmpty() -> println("nothing added to commit but untracked files present")
+            else -> println("nothing to commit, working tree clean")
+        }
     }
 }

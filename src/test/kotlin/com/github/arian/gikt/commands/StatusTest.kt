@@ -15,7 +15,7 @@ class StatusTest {
     }
 
     private fun assertStatus(output: String) {
-        val execution = cmd.cmd("status")
+        val execution = cmd.cmd("status", "--porcelain")
         assertEquals(output, execution.stdout.trimEnd())
         assertEquals(0, execution.status)
     }
