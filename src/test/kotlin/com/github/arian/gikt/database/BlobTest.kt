@@ -9,8 +9,8 @@ class BlobTest {
     @Test
     fun parse() {
         val blob = Blob(data = "hello".toByteArray())
-        val bytes = blob.content
-        val parsed = Blob.parse(bytes.sliceArray(7 until bytes.size))
+        val bytes = blob.data
+        val parsed = Blob.parse(bytes)
         assertEquals("hello", parsed.data.utf8())
         assertEquals(blob, parsed)
     }

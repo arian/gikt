@@ -55,6 +55,7 @@ object Command {
         "commit" to { ctx: CommandContext -> Commit(ctx) },
         "status" to { ctx: CommandContext -> Status(ctx) },
         "ls-files" to { ctx: CommandContext -> ListFiles(ctx) },
+        "show-head" to { ctx: CommandContext -> ShowHead(ctx) },
         "help" to { ctx: CommandContext -> Help(ctx) }
     )
 

@@ -1,6 +1,7 @@
 package com.github.arian.gikt.database
 
 import com.github.arian.gikt.relativeTo
+import com.github.arian.gikt.utf8
 import java.nio.charset.Charset
 import java.nio.file.Path
 
@@ -10,11 +11,19 @@ interface TreeEntry {
     val name: Path
     val mode: Mode
     val oid: ObjectId
+
+    fun isTree() = mode == Mode.TREE
 }
+
+data class ParsedTreeEntry(
+    override val name: Path,
+    override val mode: Mode,
+    override val oid: ObjectId
+) : TreeEntry
 
 class Tree(
     override val name: Path,
-    private val entries: MutableMap<String, TreeEntry> = mutableMapOf()
+    private var entries: Map<String, TreeEntry> = mapOf()
 ) : GiktObject(), TreeEntry {
 
     init {
@@ -45,16 +54,16 @@ class Tree(
             .reduceRight(ByteArray::plus)
     }
 
-    fun addEntry(parents: Parents?, entry: TreeEntry) {
+    fun addEntry(parents: Parents? = null, entry: TreeEntry) {
         if (parents == null || parents.isEmpty()) {
-            entries[entry.name.relativeTo(name).toString()] = entry
+            entries = entries + (entry.name.relativeTo(name).toString() to entry)
         } else {
             val dirname = name.resolve(parents.first())
             val dirString = dirname.relativeTo(name).toString()
             val tree = entries.getOrElse(dirString) { Tree(dirname) }
             if (tree is Tree) {
                 tree.addEntry(parents.tail(), entry)
-                entries[dirString] = tree
+                entries = entries + (dirString to tree)
             }
         }
     }
@@ -64,7 +73,10 @@ class Tree(
         fn(this)
     }
 
-    fun list(): List<String> =
+    fun list(): List<TreeEntry> =
+        entries.values.toList()
+
+    fun listNames(): List<String> =
         entries
             .values
             .sortedBy { it.name }
@@ -82,8 +94,30 @@ class Tree(
             }
         }
 
-        fun parse(root: Path): Tree {
-            return Tree(root)
+        fun parse(root: Path, bytes: ByteArray): Tree {
+            val entries = mutableMapOf<String, TreeEntry>()
+
+            var pos = 0
+            do {
+                val modeBytes = bytes.drop(pos).takeWhile { it != ' '.toByte() }.toByteArray()
+                val mode = Mode.parse(modeBytes.utf8()) ?: break
+                pos += modeBytes.size + 1
+
+                val nameBytes = bytes.drop(pos).takeWhile { it != 0.toByte() }.toByteArray()
+                val name = nameBytes.utf8()
+                pos += nameBytes.size + 1
+
+                val oid = bytes.sliceArray(pos until pos + 20)
+                pos += 20
+
+                entries[name] = ParsedTreeEntry(
+                    name = root.resolve(name),
+                    mode = mode,
+                    oid = ObjectId(oid)
+                )
+            } while (pos < bytes.size)
+
+            return Tree(root, entries.toMap())
         }
     }
 

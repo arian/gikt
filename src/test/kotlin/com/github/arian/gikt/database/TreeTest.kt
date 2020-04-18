@@ -28,14 +28,14 @@ class TreeTest {
 
         val tree = Tree(path).apply {
             addEntry(
-                parents = null, entry = Entry(
+                entry = Entry(
                     Path.of("file1"),
                     oid = oid1,
                     stat = stat
                 )
             )
             addEntry(
-                parents = null, entry = Entry(
+                entry = Entry(
                     Path.of("before"),
                     oid = oid2,
                     stat = stat
@@ -66,9 +66,8 @@ class TreeTest {
             oid = oid
         )
         val treeB = Tree(
-            b, mutableMapOf(
-                c.toString() to entryC
-            )
+            b,
+            mapOf(c.toString() to entryC)
         )
 
         val entryA = Entry(
@@ -78,10 +77,8 @@ class TreeTest {
         )
 
         val tree = Tree(
-            path, mutableMapOf(
-                a.toString() to entryA,
-                b.toString() to treeB
-            )
+            path,
+            mapOf(a.toString() to entryA, b.toString() to treeB)
         )
 
         val expected = ByteArray(0) +
@@ -114,11 +111,7 @@ class TreeTest {
             stat = stat,
             oid = oid
         )
-        val treeB = Tree(
-            b, mutableMapOf(
-                c.toString() to entryC
-            )
-        )
+        val treeB = Tree(b, mapOf(c.toString() to entryC))
 
         val entryA = Entry(
             name = a,
@@ -127,7 +120,8 @@ class TreeTest {
         )
 
         val tree = Tree(
-            path, mutableMapOf(
+            path,
+            mapOf(
                 a.toString() to entryA,
                 b.toString() to treeB
             )
@@ -137,6 +131,87 @@ class TreeTest {
         tree.traverse { names.add(it.name) }
 
         assertEquals(listOf(b, path), names)
+    }
+
+    @Nested
+    inner class Parse {
+
+        @Test
+        fun `parse empty tree`() {
+            val path = Path.of(".")
+            val tree = Tree(path)
+            val parsed = Tree.parse(path, tree.content)
+            assertEquals(tree, parsed)
+        }
+
+        @Test
+        fun `parse tree with entry`() {
+            val path = Path.of(".")
+
+            val oid = ObjectId(ByteArray(20) { it.toByte() })
+            val a = Entry(path.resolve("a.txt"), FileStat(), oid)
+
+            val tree = Tree(path, mapOf(a.name.toString() to a))
+            val parsed = Tree.parse(path, tree.data)
+            assertEquals(tree, parsed)
+        }
+
+        @Test
+        fun `parse tree with two entries`() {
+            val path = Path.of(".")
+
+            val oid = ObjectId(ByteArray(20) { it.toByte() })
+            val a = Entry(path.resolve("a.txt"), FileStat(), oid)
+            val b = Entry(path.resolve("b.txt"), FileStat(), oid)
+
+            val tree = Tree(
+                path,
+                mapOf(
+                    a.name.toString() to a,
+                    b.name.toString() to b
+                )
+            )
+            val parsed = Tree.parse(path, tree.data)
+            assertEquals(tree, parsed)
+        }
+
+        @Test
+        fun `parse tree with executable entry`() {
+            val path = Path.of(".")
+
+            val oid = ObjectId(ByteArray(20) { it.toByte() })
+            val a = Entry(path.resolve("a.txt"), FileStat(), oid)
+            val b = Entry(path.resolve("b"), FileStat(executable = true), oid)
+
+            val tree = Tree(
+                path,
+                mapOf(
+                    a.name.toString() to a,
+                    b.name.toString() to b
+                )
+            )
+            val parsed = Tree.parse(path, tree.data)
+            assertEquals(tree, parsed)
+        }
+
+        @Test
+        fun `parse tree with nested entry`() {
+            val path = Path.of(".")
+
+            val oid = ObjectId(ByteArray(20) { it.toByte() })
+            val a = Entry(path.resolve("a.txt"), FileStat(), oid)
+            val b = Entry(path.resolve("b"), FileStat(directory = true), oid)
+
+            val tree = Tree(
+                path,
+                mapOf(
+                    a.name.toString() to a,
+                    b.name.toString() to b
+                )
+            )
+            val parsed = Tree.parse(path, tree.data)
+            assertEquals(tree, parsed)
+        }
     }
 
     @Nested
@@ -160,7 +235,8 @@ class TreeTest {
             val file = Files.createFile(path.resolve("file.txt")).makeExecutable()
 
             val tree = Tree(path.relativeTo(path)).apply {
-                addEntry(Tree.Parents(),
+                addEntry(
+                    Tree.Parents(),
                     Entry(
                         file.relativeTo(path),
                         FileStat(executable = true),
@@ -195,9 +271,9 @@ class TreeTest {
 
             val tree = Tree.build(path, entries)
 
-            assertEquals(listOf("a"), tree.list())
-            assertEquals(listOf("b", "b.txt", "x.txt"), tree.getTree("a")?.list())
-            assertEquals(listOf("c", "c.txt"), tree.getTree("a")?.getTree("b")?.list())
+            assertEquals(listOf("a"), tree.listNames())
+            assertEquals(listOf("b", "b.txt", "x.txt"), tree.getTree("a")?.listNames())
+            assertEquals(listOf("c", "c.txt"), tree.getTree("a")?.getTree("b")?.listNames())
 
             val names = mutableListOf<String>()
             tree.traverse { names.add(it.name.toString()) }

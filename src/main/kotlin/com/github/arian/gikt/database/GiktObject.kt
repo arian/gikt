@@ -32,14 +32,14 @@ abstract class GiktObject {
                 .takeWhile { it != 0.toByte() }
                 .toByteArray()
 
-            val start = typeBytes.size + sizeBytes.size
+            val start = typeBytes.size + sizeBytes.size + 1
             val content = bytes.sliceArray(start until bytes.size)
 
             return when (type) {
                 "blob" -> Blob.parse(content)
-                "tree" -> Tree.parse(root) // TODO
+                "tree" -> Tree.parse(root, content)
                 "commit" -> Commit.parse(content)
-                else -> throw IllegalStateException("unkown object type")
+                else -> throw IllegalStateException("unknown object type")
             }
         }
     }

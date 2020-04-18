@@ -80,7 +80,7 @@ class CommitTest {
         val message = "hello\nfoo\n\nlast\n"
         val commit = Commit(parent, tree, author, message.toByteArray())
 
-        val bytes = commit.content.sliceArray(11 until commit.content.size)
+        val bytes = commit.data
         val parsed = Commit.parse(bytes)
 
         assertEquals(parent, parsed.parent)
