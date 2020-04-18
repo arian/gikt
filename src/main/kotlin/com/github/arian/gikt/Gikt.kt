@@ -26,6 +26,6 @@ fun main(args: Array<String>) {
         clock = Clock.systemDefaultZone()
     )
 
-    val cmd = Command.execute(args[0], ctx)
+    val cmd = Command.execute(args.getOrNull(0) ?: "help", ctx)
     exitProcess(cmd.status)
 }

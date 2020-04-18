@@ -6,7 +6,16 @@ import java.nio.file.Path
 
 class Workspace(private val rootPath: Path) {
 
-    private val ignore = listOf(".git", ".idea", "out", "gikt.iml", "gikt.jar", "gikt-test.jar")
+    private val ignore = listOf(
+        ".git",
+        ".idea",
+        "out",
+        "gikt.iml",
+        "gikt.jar",
+        "gikt-test.jar",
+        ".gradle",
+        "build"
+    )
 
     private val rootIgnores = ignores(rootPath)
 
