@@ -23,6 +23,7 @@ fun main(args: Array<String>) {
         stdin = System.`in`,
         stdout = System.out,
         stderr = System.err,
+        isatty = System.console() != null,
         clock = Clock.systemDefaultZone()
     )
 

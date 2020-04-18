@@ -1,6 +1,7 @@
 package com.github.arian.gikt.commands
 
 import com.github.arian.gikt.Repository
+import com.github.arian.gikt.Style
 import java.io.InputStream
 import java.io.PrintStream
 import java.nio.file.Path
@@ -15,6 +16,7 @@ data class CommandContext(
     val stdin: InputStream,
     val stdout: PrintStream,
     val stderr: PrintStream,
+    val isatty: Boolean = false,
     val clock: Clock
 )
 
@@ -45,6 +47,13 @@ abstract class AbstractCommand(val ctx: CommandContext) {
 
     fun println(msg: String) =
         ctx.stdout.println(msg)
+
+    fun fmt(style: Style, string: String) =
+        if (ctx.isatty) {
+            style.format(string)
+        } else {
+            string
+        }
 }
 
 object Command {

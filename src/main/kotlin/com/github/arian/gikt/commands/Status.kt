@@ -2,6 +2,7 @@ package com.github.arian.gikt.commands
 
 import com.github.arian.gikt.FileStat
 import com.github.arian.gikt.Repository
+import com.github.arian.gikt.Style
 import com.github.arian.gikt.database.Blob
 import com.github.arian.gikt.database.Commit
 import com.github.arian.gikt.database.Mode
@@ -228,15 +229,17 @@ class Status(ctx: CommandContext) : AbstractCommand(ctx) {
     private fun printLongFormat(scan: Scan) {
         printChanges(
             "Changes to be committed",
-            scan.changes.indexChanges()
-        ) { longStatus(scan.changes.indexType(it)) }
+            scan.changes.indexChanges(),
+            Style.GREEN
+        ) { longStatus(scan.changes.indexType(it)).padEnd(12) }
 
         printChanges(
             "Changes not staged for commit",
-            scan.changes.workspaceChanges()
-        ) { longStatus(scan.changes.workspaceType(it)) }
+            scan.changes.workspaceChanges(),
+            Style.RED
+        ) { longStatus(scan.changes.workspaceType(it)).padEnd(12) }
 
-        printChanges("Untracked files", scan.untracked) { "" }
+        printChanges("Untracked files", scan.untracked, Style.RED) { "" }
 
         printCommitStatus(scan)
     }
@@ -250,7 +253,12 @@ class Status(ctx: CommandContext) : AbstractCommand(ctx) {
         }
     }
 
-    private fun printChanges(message: String, changeset: Set<String>, type: (String) -> String) {
+    private fun printChanges(
+        message: String,
+        changeset: Set<String>,
+        style: Style,
+        type: (String) -> String
+    ) {
 
         if (changeset.isEmpty()) {
             return
@@ -260,8 +268,8 @@ class Status(ctx: CommandContext) : AbstractCommand(ctx) {
         println("")
 
         changeset.forEach {
-            val status = type(it).padEnd(12)
-            println("\t$status$it")
+            val status = type(it)
+            println("\t" + fmt(style, status + it))
         }
 
         println("")

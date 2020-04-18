@@ -93,6 +93,7 @@ class CommandHelper : Closeable {
             stdout = PrintStream(stdout),
             stdin = ByteArrayInputStream(stdin?.toByteArray(Charsets.UTF_8) ?: ByteArray(0)),
             env = { env[it] },
+            isatty = false,
             clock = Clock.systemDefaultZone()
         )
 
