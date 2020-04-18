@@ -141,11 +141,24 @@ data class Entry(
     }
 }
 
-class Checksum(val file: Path) : Closeable {
+class ChecksumWriter(private val writer: (ByteArray) -> Unit) {
+
+    private val digest = MessageDigest.getInstance("SHA-1")
+
+    fun write(data: ByteArray) {
+        writer(data)
+        digest.update(data)
+    }
+
+    fun writeChecksum() {
+        writer(digest.digest())
+    }
+}
+
+class ChecksumReader(file: Path) : Closeable {
 
     private val digest = MessageDigest.getInstance("SHA-1")
     private val inputStream = Files.newInputStream(file, StandardOpenOption.READ)
-    private val outputStream = Files.newOutputStream(file, StandardOpenOption.WRITE)
 
     fun read(size: Int): ByteArray {
         val data: ByteArray = inputStream.readNBytes(size)
@@ -165,15 +178,6 @@ class Checksum(val file: Path) : Closeable {
         if (!hash.contentEquals(sum)) {
             throw IllegalStateException("Checksum does not match value stored on disk")
         }
-    }
-
-    fun write(data: ByteArray) {
-        outputStream.write(data)
-        digest.update(data)
-    }
-
-    fun writeChecksum() {
-        outputStream.write(digest.digest())
     }
 
     override fun close() {
@@ -218,7 +222,10 @@ class Index(private val pathname: Path) {
         toList().forEach(fn)
 
     private fun tracked(it: Path) =
-        entries.containsKey(it.toString()) || parents.containsKey(it.toString())
+        tracked(it.toString())
+
+    private fun tracked(key: String) =
+        entries.containsKey(key) || parents.containsKey(key)
 
     private fun writeUpdates(lock: Lockfile.Ref) {
         if (!changed) {
@@ -226,7 +233,7 @@ class Index(private val pathname: Path) {
             return
         }
 
-        val writer = Checksum(lock.lockPath)
+        val writer = ChecksumWriter { lock.write(it) }
 
         val header = SIGNATURE.toByteArray() + VERSION.to32Bit() + entries.size.to32Bit()
         writer.write(header)
@@ -255,6 +262,7 @@ class Index(private val pathname: Path) {
     open class Loaded internal constructor(private val index: Index) {
         fun forEach(fn: (Entry) -> Unit) = index.forEach(fn)
         fun toList() = index.toList()
+        fun tracked(it: String): Boolean = index.tracked(it)
         fun tracked(it: Path): Boolean = index.tracked(it)
     }
 
@@ -279,15 +287,15 @@ class Index(private val pathname: Path) {
         changed = false
     }
 
-    private fun openIndexFile(path: Path): Checksum? {
+    private fun openIndexFile(path: Path): ChecksumReader? {
         return try {
-            Checksum(path)
+            ChecksumReader(path)
         } catch (e: NoSuchFileException) {
             null
         }
     }
 
-    private fun readHeader(checksum: Checksum): Int {
+    private fun readHeader(checksum: ChecksumReader): Int {
 
         val signature = checksum.read(4)
         if (!signature.contentEquals(SIGNATURE.toByteArray())) {
@@ -302,7 +310,7 @@ class Index(private val pathname: Path) {
         return checksum.read(4).from32Bit()
     }
 
-    private fun readEntries(reader: Checksum, count: Int) {
+    private fun readEntries(reader: ChecksumReader, count: Int) {
         repeat(count) {
             var entry = reader.read(ENTRY_MIN_SIZE)
 

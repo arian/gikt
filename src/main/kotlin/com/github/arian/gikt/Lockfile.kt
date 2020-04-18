@@ -46,7 +46,7 @@ class Lockfile(private val path: Path) {
     class Ref internal constructor(private val lockfile: Lockfile) : Closeable {
 
         val path = lockfile.path
-        val lockPath = lockfile.lockPath
+        private val lockPath = lockfile.lockPath
 
         private var stream: OutputStream?
         internal var done = false

@@ -5,6 +5,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicBoolean
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -54,6 +55,17 @@ class LockfileTest(private val fileSystemProvider: FileSystemExtension.FileSyste
             it.commit()
         }
         assertEquals("hello", file.readText())
+    }
+
+    @Test
+    fun `holdLockAndWrite and then delete the file`() {
+        val file = path.resolve("a.txt").touch()
+        Lockfile(file).holdForUpdate {
+            it.write("hello")
+            it.commit()
+        }
+        file.delete()
+        assertFalse(file.exists())
     }
 
     @Test

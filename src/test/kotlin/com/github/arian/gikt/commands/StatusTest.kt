@@ -171,4 +171,92 @@ class StatusTest {
             )
         }
     }
+
+    @Nested
+    inner class HeadIndexChanges {
+
+        @BeforeEach
+        fun before() {
+            cmd.writeFile("1.txt", "one")
+            cmd.writeFile("a/2.txt", "two")
+            cmd.writeFile("a/b/3.txt", "three")
+            cmd.cmd("add", ".")
+            cmd.commit("first message")
+        }
+
+        @Test
+        fun `reports a file added to a tracked directory`() {
+            cmd.writeFile("a/4.txt", "four")
+            cmd.cmd("add", ".")
+
+            assertStatus(
+                """
+                    |A  a/4.txt
+                """.trimMargin()
+            )
+        }
+
+        @Test
+        fun `reports a file added to an untracked directory`() {
+            cmd.writeFile("d/e/5.txt", "five")
+            cmd.cmd("add", ".")
+
+            assertStatus(
+                """
+                    |A  d/e/5.txt
+                """.trimMargin()
+            )
+        }
+
+        @Test
+        fun `reports modified modes`() {
+            cmd.makeExecutable("1.txt")
+            cmd.cmd("add", ".")
+
+            assertStatus(
+                """
+                    |M  1.txt
+                """.trimMargin()
+            )
+        }
+
+        @Test
+        fun `reports modified contents`() {
+            cmd.writeFile("a/b/3.txt", "changed")
+            cmd.cmd("add", ".")
+
+            assertStatus(
+                """
+                    |M  a/b/3.txt
+                """.trimMargin()
+            )
+        }
+
+        @Test
+        fun `reports deleted files`() {
+            cmd.delete("1.txt")
+            cmd.delete(".git/index")
+            cmd.cmd("add", ".")
+
+            assertStatus(
+                """
+                    |D  1.txt
+                """.trimMargin()
+            )
+        }
+
+        @Test
+        fun `reports deleted files inside directories`() {
+            cmd.delete("a")
+            cmd.delete(".git/index")
+            cmd.cmd("add", ".")
+
+            assertStatus(
+                """
+                    |D  a/2.txt
+                    |D  a/b/3.txt
+                """.trimMargin()
+            )
+        }
+    }
 }

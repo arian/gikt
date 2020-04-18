@@ -10,7 +10,15 @@ enum class Mode(val mode: String) {
     TREE("40000");
 
     companion object {
+
         fun parse(name: String): Mode? = values().find { it.mode == name }
+
+        fun fromStat(stat: FileStat): Mode =
+            when {
+                stat.directory -> TREE
+                stat.executable -> EXECUTABLE
+                else -> REGULAR
+            }
     }
 }
 
@@ -32,11 +40,7 @@ class Entry(
         oid: ObjectId
     ) : this(
         name,
-        when {
-            stat.directory -> Mode.TREE
-            stat.executable -> Mode.EXECUTABLE
-            else -> Mode.REGULAR
-        },
+        Mode.fromStat(stat),
         oid
     )
 }

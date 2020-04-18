@@ -13,19 +13,18 @@ class ShowHead(ctx: CommandContext) : AbstractCommand(ctx) {
 
         val head = repository.refs.readHead()
         if (head != null) {
-            when (val commit = repository.database.load(rel(ctx.dir), head)) {
-                is Commit -> showTree(commit.tree, rel(ctx.dir))
+            val rel = ctx.dir.relativeTo(ctx.dir)
+            when (val commit = repository.database.load(rel, head)) {
+                is Commit -> showTree(commit.tree, rel)
             }
         }
     }
 
-    private fun rel(path: Path) = path.relativeTo(path)
-
     private fun showTree(oid: ObjectId, prefix: Path) {
-        when (val tree = repository.database.load(rel(prefix), oid)) {
+        when (val tree = repository.database.load(prefix, oid)) {
             is Tree -> {
                 tree.list().forEach { entry ->
-                    val path = prefix.resolve(entry.name)
+                    val path = entry.name
                     if (entry.isTree()) {
                         showTree(entry.oid, path)
                     } else {

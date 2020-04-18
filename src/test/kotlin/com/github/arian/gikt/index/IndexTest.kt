@@ -5,6 +5,8 @@ import com.github.arian.gikt.Lockfile
 import com.github.arian.gikt.database.Blob
 import com.github.arian.gikt.database.ObjectId
 import com.github.arian.gikt.database.toHexString
+import com.github.arian.gikt.delete
+import com.github.arian.gikt.exists
 import com.github.arian.gikt.mkdirp
 import com.github.arian.gikt.readBytes
 import com.github.arian.gikt.relativeTo
@@ -16,6 +18,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicBoolean
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -138,6 +141,20 @@ class IndexTest(private val fileSystemProvider: FileSystemExtension.FileSystemPr
         val index = Index(workspacePath.resolve("index"))
         workspacePath.resolve("index.lock").touch()
         assertThrows<Lockfile.LockDenied> { index.loadForUpdate { } }
+    }
+
+    @Test
+    fun `index is closed and delete-able`() {
+        val indexPath = workspacePath.resolve("index")
+        val index = Index(indexPath)
+
+        index.loadForUpdate {
+            add(rel("alice.txt"), oid, stat)
+            writeUpdates()
+        }
+
+        indexPath.delete()
+        assertFalse(indexPath.exists())
     }
 
     @Test
