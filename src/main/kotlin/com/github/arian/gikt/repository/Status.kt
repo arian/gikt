@@ -11,20 +11,53 @@ import com.github.arian.gikt.index.Entry
 import com.github.arian.gikt.index.Index
 import java.nio.file.Path
 import java.util.SortedMap
-import java.util.SortedSet
 
 class Status(private val repository: Repository) {
 
-    data class Changes internal constructor(
-        private val workspace: SortedMap<String, ChangeType> = sortedMapOf(),
-        private val index: SortedMap<String, ChangeType> = sortedMapOf()
-    ) {
+    enum class ChangeType(val short: String) {
+        MODIFIED("M"),
+        ADDED("A"),
+        DELETED("D")
+    }
 
-        enum class ChangeType(val short: String) {
-            MODIFIED("M"),
-            ADDED("A"),
-            DELETED("D")
-        }
+    interface Change : Comparable<Change> {
+        val key: String
+        val changeType: ChangeType
+    }
+
+    sealed class WorkspaceChange(
+        override val key: String,
+        override val changeType: ChangeType
+    ) : Change {
+        data class Modified(val entry: Entry) : WorkspaceChange(entry.key, ChangeType.MODIFIED)
+        data class Deleted(val entry: Entry) : WorkspaceChange(entry.key, ChangeType.DELETED)
+
+        override fun compareTo(other: Change) = key.compareTo(other.key)
+    }
+
+    sealed class IndexChange(
+        override val key: String,
+        override val changeType: ChangeType
+    ) : Change {
+
+        data class Added(val entry: Entry) : IndexChange(entry.key, ChangeType.ADDED)
+
+        data class Modified(
+            val entry: Entry,
+            val treeEntry: TreeEntry
+        ) : IndexChange(entry.key, ChangeType.MODIFIED)
+
+        data class Deleted(
+            val treeEntry: TreeEntry
+        ) : IndexChange(treeEntry.name.toString(), ChangeType.DELETED)
+
+        override fun compareTo(other: Change) = key.compareTo(other.key)
+    }
+
+    data class Changes internal constructor(
+        private val workspace: SortedMap<String, WorkspaceChange> = sortedMapOf(),
+        private val index: SortedMap<String, IndexChange> = sortedMapOf()
+    ) {
 
         operator fun plus(other: Changes) =
             copy(
@@ -33,22 +66,16 @@ class Status(private val repository: Repository) {
             )
 
         companion object {
-            private fun single(pair: Pair<String, ChangeType>) = mapOf(pair).toSortedMap()
-
-            fun workspaceDeleted(key: String) = Changes(workspace = single(key to ChangeType.DELETED))
-            fun workspaceModified(key: String) = Changes(workspace = single(key to ChangeType.MODIFIED))
-            fun indexAdded(key: String) = Changes(index = single(key to ChangeType.ADDED))
-            fun indexModified(key: String) = Changes(index = single(key to ChangeType.MODIFIED))
-            fun indexDeleted(key: String) = Changes(index = single(key to ChangeType.DELETED))
-            fun empty() = Changes()
+            internal fun workspace(change: WorkspaceChange) = Changes(workspace = sortedMapOf(change.key to change))
+            internal fun index(change: IndexChange) = Changes(index = sortedMapOf(change.key to change))
+            internal fun empty() = Changes()
         }
 
-        fun all(): SortedSet<String> = (workspaceChanges().keys + indexChanges().keys).toSortedSet()
-        fun workspaceChanges(): Map<String, ChangeType> = workspace
-        fun indexChanges(): Map<String, ChangeType> = index
-
-        fun indexType(key: String) = index[key]
-        fun workspaceType(key: String) = workspace[key]
+        fun all(): Set<String> = (workspace.keys + index.keys).toSortedSet()
+        fun workspaceChanges(): Set<WorkspaceChange> = workspace.values.toSortedSet()
+        fun indexChanges(): Set<IndexChange> = index.values.toSortedSet()
+        fun indexChange(key: String) = index[key]
+        fun workspaceChange(key: String) = workspace[key]
     }
 
     data class Scan(
@@ -124,7 +151,7 @@ class Status(private val repository: Repository) {
 
         val indexDeleted = headTree
             .filterNot { index.tracked(it.key) }
-            .map { Changes.indexDeleted(it.key) }
+            .map { Changes.index(IndexChange.Deleted(it.value)) }
 
         val changes = workspaceChanges + headChanges + indexDeleted
 
@@ -141,10 +168,10 @@ class Status(private val repository: Repository) {
         scan: Scan,
         entry: Entry
     ): Changes? {
-        val stat = scan.stats[entry.key] ?: return Changes.workspaceDeleted(entry.key)
+        val stat = scan.stats[entry.key] ?: return Changes.workspace(WorkspaceChange.Deleted(entry))
 
         if (!entry.statMatch(stat)) {
-            return Changes.workspaceModified(entry.key)
+            return Changes.workspace(WorkspaceChange.Modified(entry))
         }
 
         if (entry.timesMatch(stat)) {
@@ -160,7 +187,7 @@ class Status(private val repository: Repository) {
             }
             null
         } else {
-            Changes.workspaceModified(entry.key)
+            return Changes.workspace(WorkspaceChange.Modified(entry))
         }
     }
 
@@ -191,9 +218,9 @@ class Status(private val repository: Repository) {
         val treeEntry = tree[entry.key]
         return when {
             treeEntry == null ->
-                Changes.indexAdded(entry.key)
+                Changes.index(IndexChange.Added(entry))
             Mode.fromStat(entry.stat) != treeEntry.mode || entry.oid != treeEntry.oid ->
-                Changes.indexModified(entry.key)
+                Changes.index(IndexChange.Modified(entry, treeEntry))
             else ->
                 null
         }

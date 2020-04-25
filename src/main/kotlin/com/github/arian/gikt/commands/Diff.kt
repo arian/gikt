@@ -2,77 +2,102 @@ package com.github.arian.gikt.commands
 
 import com.github.arian.gikt.Mode
 import com.github.arian.gikt.database.Blob
+import com.github.arian.gikt.database.ObjectId
+import com.github.arian.gikt.database.TreeEntry
 import com.github.arian.gikt.index.Entry
-import com.github.arian.gikt.index.Index
 import com.github.arian.gikt.repository.Status
-import com.github.arian.gikt.repository.Status.Changes.ChangeType.DELETED
-import com.github.arian.gikt.repository.Status.Changes.ChangeType.MODIFIED
 import java.nio.file.Path
 
 class Diff(ctx: CommandContext) : AbstractCommand(ctx) {
+
+    private data class Target(val path: String, val oid: ObjectId, val mode: Mode? = null)
+
     override fun run() {
 
         val index = repository.index.load()
-        val status = repository.status()
-        val scan = status.scan(index)
+        val scan = repository.status().scan(index)
 
-        scan.changes.workspaceChanges().forEach { (path, type) ->
-            when (type) {
-                MODIFIED -> diffFileModified(index, scan, path)
-                DELETED -> diffFileDeleted(index, scan, path)
-                else -> {}
-            }
+        when (ctx.args.firstOrNull()) {
+            "--cached" -> diffHeadIndex(scan)
+            else -> diffIndexWorkspace(scan)
         }
 
         exitProcess(0)
     }
 
-    private fun diffFileModified(index: Index.Loaded, scan: Status.Scan, path: String) {
-        val entry: Entry = index[path] ?: return
-        val aOid = entry.oid
-        val aMode = entry.mode
-        val aPath = Path.of("a").resolve(path)
-
-        val blob = Blob(repository.workspace.readFile(path))
-        val bOid = blob.oid
-        val bMode = Mode.fromStat(scan.stats[path] ?: return)
-        val bPath = Path.of("b").resolve(path)
-
-        println("diff --git $aPath $bPath")
-
-        if (aMode != bMode) {
-            println("old mode ${aMode.mode}")
-            println("new mode ${bMode.mode}")
+    private fun diffIndexWorkspace(scan: Status.Scan) {
+        scan.changes.workspaceChanges().forEach { change ->
+            when (change) {
+                is Status.WorkspaceChange.Modified -> printDiff(fromIndex(change.entry), fromFile(change.key, scan))
+                is Status.WorkspaceChange.Deleted -> printDiff(fromIndex(change.entry), fromNothing("/dev/null"))
+            }
         }
+    }
 
-        if (aOid == bOid) {
+    private fun diffHeadIndex(scan: Status.Scan) {
+        scan.changes.indexChanges().forEach { change ->
+            when (change) {
+                is Status.IndexChange.Added -> printDiff(fromNothing(change.key), fromIndex(change.entry))
+                is Status.IndexChange.Modified -> printDiff(fromHead(change.treeEntry), fromIndex(change.entry))
+                is Status.IndexChange.Deleted -> printDiff(fromHead(change.treeEntry), fromNothing(change.key))
+            }
+        }
+    }
+
+    private fun fromIndex(entry: Entry): Target =
+        Target(entry.key, entry.oid, entry.mode)
+
+    private fun fromFile(path: String, scan: Status.Scan): Target {
+        val blob = Blob(repository.workspace.readFile(path))
+        val mode = scan.stats[path]?.let { Mode.fromStat(it) } ?: Mode.REGULAR
+        return Target(path, blob.oid, mode)
+    }
+
+    private fun fromNothing(path: String): Target {
+        return Target(path = path, oid = ObjectId(ByteArray(20) { 0.toByte() }))
+    }
+
+    private fun fromHead(entry: TreeEntry): Target {
+        return Target(entry.name.toString(), entry.oid, entry.mode)
+    }
+
+    private fun printDiff(a: Target, b: Target) {
+        if (a.oid == b.oid && a.mode == b.mode) {
             return
         }
 
-        val oidRangeBegin = "index ${aOid.short}..${bOid.short}"
-        val oidRange = when (aMode) {
-            bMode -> "$oidRangeBegin ${aMode.mode}"
+        val aFull = a.copy(path = Path.of("a").resolve(a.path).toString())
+        val bFull = b.copy(path = Path.of("b").resolve(b.path).toString())
+
+        println("diff --git ${aFull.path} ${bFull.path}")
+        printDiffMode(aFull, bFull)
+        printDiffContent(aFull, bFull)
+    }
+
+    private fun printDiffMode(a: Target, b: Target) {
+        if (a.mode == null && b.mode != null) {
+            println("new file mode ${b.mode.mode}")
+        } else if (a.mode != null && b.mode != null && a.mode != b.mode) {
+            println("old mode ${a.mode.mode}")
+            println("new mode ${b.mode.mode}")
+        } else if (b.mode == null && a.mode != null) {
+            println("deleted file mode ${a.mode.mode}")
+        }
+    }
+
+    private fun printDiffContent(a: Target, b: Target) {
+        if (a.oid == b.oid) {
+            return
+        }
+
+        val oidRangeBegin = "index ${a.oid.short}..${b.oid.short}"
+        val oidRange = when {
+            a.mode != null && a.mode == b.mode -> "$oidRangeBegin ${a.mode.mode}"
             else -> oidRangeBegin
         }
 
         println(oidRange)
-        println("--- $aPath")
-        println("+++ $bPath")
-    }
-
-    private fun diffFileDeleted(index: Index.Loaded, scan: Status.Scan, path: String) {
-        val entry: Entry = index[path] ?: return
-        val aOid = entry.oid
-        val aMode = entry.mode
-        val aPath = Path.of("a").resolve(path)
-
-        val bOid = "0000000"
-        val bPath = "/dev/null"
-
-        println("diff --git $aPath $bPath")
-        println("deleted file mode ${aMode.mode}")
-        println("index ${aOid.short}..$bOid")
-        println("--- $aPath")
-        println("+++ $bPath")
+        println("--- ${a.path}")
+        println("+++ ${b.path}")
     }
 }

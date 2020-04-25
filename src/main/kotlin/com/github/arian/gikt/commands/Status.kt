@@ -28,43 +28,43 @@ class Status(ctx: CommandContext) : AbstractCommand(ctx) {
     }
 
     private fun statusFor(scan: Status.Scan, key: String): String {
-        val left = scan.changes.indexType(key)?.short ?: " "
-        val right = scan.changes.workspaceType(key)?.short ?: " "
+        val left = scan.changes.indexChange(key)?.changeType?.short ?: " "
+        val right = scan.changes.workspaceChange(key)?.changeType?.short ?: " "
         return "$left$right"
     }
 
     private fun printLongFormat(scan: Status.Scan) {
         printChanges(
             "Changes to be committed",
-            scan.changes.indexChanges().keys,
+            scan.changes.indexChanges(),
             Style.GREEN
-        ) { longStatus(scan.changes.indexType(it)).padEnd(12) }
+        ) { longStatus(it.changeType).padEnd(12) }
 
         printChanges(
             "Changes not staged for commit",
-            scan.changes.workspaceChanges().keys,
+            scan.changes.workspaceChanges(),
             Style.RED
-        ) { longStatus(scan.changes.workspaceType(it)).padEnd(12) }
+        ) { longStatus(it.changeType).padEnd(12) }
 
         printChanges("Untracked files", scan.untracked, Style.RED) { "" }
 
         printCommitStatus(scan)
     }
 
-    private fun longStatus(status: Status.Changes.ChangeType?): String {
+    private fun longStatus(status: Status.ChangeType?): String {
         return when (status) {
-            Status.Changes.ChangeType.ADDED -> "new file:"
-            Status.Changes.ChangeType.DELETED -> "deleted:"
-            Status.Changes.ChangeType.MODIFIED -> "modified:"
+            Status.ChangeType.ADDED -> "new file:"
+            Status.ChangeType.DELETED -> "deleted:"
+            Status.ChangeType.MODIFIED -> "modified:"
             null -> ""
         }
     }
 
-    private fun printChanges(
+    private fun <T> printChanges(
         message: String,
-        changeset: Set<String>,
+        changeset: Set<T>,
         style: Style,
-        type: (String) -> String
+        type: (T) -> String
     ) {
 
         if (changeset.isEmpty()) {
