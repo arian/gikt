@@ -2,15 +2,6 @@ package com.github.arian.gikt
 
 class Diff {
 
-    companion object {
-        private fun lines(str: String) =
-            str.lines()
-
-        fun diff(a: String, b: String): List<Edit> {
-            return Myers(lines(a), lines(b)).diff()
-        }
-    }
-
     enum class DiffType(val symbol: String) {
         Eql(" "),
         Ins("+"),
@@ -19,14 +10,17 @@ class Diff {
 
     data class Edit(val type: DiffType, val line: String)
 
-    class Myers(private val a: List<String>, private val b: List<String>) {
+    private data class PositionPairs(val prevX: Int, val prevY: Int, val x: Int, val y: Int)
 
-        fun diff(): List<Edit> {
-            return backtrack()
-                .map { (prev, cur) ->
-                    val (prevX, prevY) = prev
-                    val (x, y) = cur
+    companion object {
 
+        fun diff(a: String, b: String): List<Edit> {
+            return myersDiff(a.lines(), b.lines())
+        }
+
+        internal fun myersDiff(a: List<String>, b: List<String>): List<Edit> {
+            return backtrack(a, b)
+                .map { (prevX, prevY, x, y) ->
                     when {
                         x == prevX -> Edit(DiffType.Ins, b[prevY])
                         y == prevY -> Edit(DiffType.Del, a[prevX])
@@ -36,16 +30,15 @@ class Diff {
                 .reversed()
         }
 
-        private fun shortestEdit(): List<IntArray> {
+        private fun shortestEdit(a: List<String>, b: List<String>): List<IntArray> {
             val n = a.size
             val m = b.size
             val max = n + m
 
             val size = 2 * max + 1
-            val i = wrapIndex(size)
+            val i = wrapIndex(max)
 
             val v = IntArray(size) { 0 }
-            v[1] = 0
 
             val trace = mutableListOf<IntArray>()
 
@@ -79,14 +72,14 @@ class Diff {
             return trace
         }
 
-        private fun backtrack(): List<Pair<Point, Point>> {
+        private fun backtrack(a: List<String>, b: List<String>): List<PositionPairs> {
             var x = a.size
             var y = b.size
-            val i = wrapIndex((x + y) * 2 + 1)
+            val i = wrapIndex(x + y)
 
-            val pairs = mutableListOf<Pair<Point, Point>>()
+            val pairs = mutableListOf<PositionPairs>()
 
-            shortestEdit()
+            shortestEdit(a, b)
                 .mapIndexed { d, v -> (d to v) }
                 .reversed()
                 .forEach { (d, v) ->
@@ -103,13 +96,13 @@ class Diff {
                     val prevY = prevX - prevK
 
                     while (x > prevX && y > prevY) {
-                        pairs.add((x - 1 to y - 1) to (x to y))
+                        pairs.add(PositionPairs(x - 1, y - 1, x, y))
                         x -= 1
                         y -= 1
                     }
 
                     if (d > 0) {
-                        pairs.add((prevX to prevY) to (x to y))
+                        pairs.add(PositionPairs(prevX, prevY, x, y))
                     }
 
                     x = prevX
@@ -119,11 +112,6 @@ class Diff {
             return pairs
         }
 
-        private fun wrapIndex(size: Int) = fun(it: Int) = when {
-            it < 0 -> it + size
-            else -> it
-        }
+        private fun wrapIndex(size: Int) = { it: Int -> it + size }
     }
 }
-
-typealias Point = Pair<Int, Int>
