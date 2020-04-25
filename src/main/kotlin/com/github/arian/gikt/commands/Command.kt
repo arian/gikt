@@ -1,7 +1,7 @@
 package com.github.arian.gikt.commands
 
-import com.github.arian.gikt.Repository
 import com.github.arian.gikt.Style
+import com.github.arian.gikt.repository.Repository
 import java.io.InputStream
 import java.io.PrintStream
 import java.nio.file.Path

@@ -1,10 +1,10 @@
 package com.github.arian.gikt.commands
 
-import com.github.arian.gikt.Repository
 import com.github.arian.gikt.database.Commit
 import com.github.arian.gikt.database.ObjectId
 import com.github.arian.gikt.database.Tree
 import com.github.arian.gikt.relativeTo
+import com.github.arian.gikt.repository.Repository
 import java.nio.file.Path
 
 class ShowHead(ctx: CommandContext) : AbstractCommand(ctx) {

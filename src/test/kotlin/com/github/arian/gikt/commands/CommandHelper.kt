@@ -1,6 +1,5 @@
 package com.github.arian.gikt.commands
 
-import com.github.arian.gikt.Repository
 import com.github.arian.gikt.delete
 import com.github.arian.gikt.deleteRecursively
 import com.github.arian.gikt.isDirectory
@@ -8,6 +7,7 @@ import com.github.arian.gikt.makeExecutable
 import com.github.arian.gikt.makeUnExecutable
 import com.github.arian.gikt.makeUnreadable
 import com.github.arian.gikt.mkdirp
+import com.github.arian.gikt.repository.Repository
 import com.github.arian.gikt.touch
 import com.github.arian.gikt.write
 import com.github.marschall.memoryfilesystem.MemoryFileSystemBuilder

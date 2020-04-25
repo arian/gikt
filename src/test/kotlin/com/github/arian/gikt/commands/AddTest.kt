@@ -1,7 +1,7 @@
 package com.github.arian.gikt.commands
 
-import com.github.arian.gikt.Repository
 import com.github.arian.gikt.makeExecutable
+import com.github.arian.gikt.repository.Repository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test

@@ -1,12 +1,15 @@
-package com.github.arian.gikt
+package com.github.arian.gikt.repository
 
+import com.github.arian.gikt.Refs
+import com.github.arian.gikt.Workspace
 import com.github.arian.gikt.database.Database
 import com.github.arian.gikt.database.Entry as DatabaseEntry
 import com.github.arian.gikt.database.Tree
 import com.github.arian.gikt.index.Index
+import com.github.arian.gikt.relativeTo
 import java.nio.file.Path
 
-class Repository(private val rootPath: Path) {
+class Repository(val rootPath: Path) {
 
     val gitPath = rootPath.resolve(".git")
     val dbPath = gitPath.resolve("objects")
@@ -22,4 +25,6 @@ class Repository(private val rootPath: Path) {
     fun relativePath(path: Path): Path = path.relativeTo(rootPath)
 
     fun buildTree(entries: List<DatabaseEntry>) = Tree.build(rootPath, entries)
+
+    fun status() = Status(this)
 }

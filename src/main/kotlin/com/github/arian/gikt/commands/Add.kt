@@ -1,10 +1,10 @@
 package com.github.arian.gikt.commands
 
 import com.github.arian.gikt.Lockfile
-import com.github.arian.gikt.Repository
 import com.github.arian.gikt.Workspace
 import com.github.arian.gikt.database.Blob
 import com.github.arian.gikt.index.Index
+import com.github.arian.gikt.repository.Repository
 import java.nio.file.Path
 
 private val LOCKED_INDEX_MESSAGE = """

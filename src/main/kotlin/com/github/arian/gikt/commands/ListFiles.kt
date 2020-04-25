@@ -1,6 +1,6 @@
 package com.github.arian.gikt.commands
 
-import com.github.arian.gikt.Repository
+import com.github.arian.gikt.repository.Repository
 
 class ListFiles(ctx: CommandContext) : AbstractCommand(ctx) {
     override fun run() {
