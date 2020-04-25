@@ -18,6 +18,7 @@ data class ObjectId(val bytes: ByteArray) {
     constructor(bytes: String) : this(bytes.hexToByteArray())
 
     val hex: String get() = bytes.toHexString()
+    val short: String get() = hex.take(7)
 
     override fun toString() = hex
 

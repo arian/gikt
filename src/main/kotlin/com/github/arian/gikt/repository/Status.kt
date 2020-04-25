@@ -1,9 +1,9 @@
 package com.github.arian.gikt.repository
 
 import com.github.arian.gikt.FileStat
+import com.github.arian.gikt.Mode
 import com.github.arian.gikt.database.Blob
 import com.github.arian.gikt.database.Commit
-import com.github.arian.gikt.database.Mode
 import com.github.arian.gikt.database.ObjectId
 import com.github.arian.gikt.database.Tree
 import com.github.arian.gikt.database.TreeEntry
@@ -43,9 +43,9 @@ class Status(private val repository: Repository) {
             fun empty() = Changes()
         }
 
-        fun all(): SortedSet<String> = (workspaceChanges() + indexChanges()).toSortedSet()
-        fun workspaceChanges() = workspace.keys
-        fun indexChanges() = index.keys
+        fun all(): SortedSet<String> = (workspaceChanges().keys + indexChanges().keys).toSortedSet()
+        fun workspaceChanges(): Map<String, ChangeType> = workspace
+        fun indexChanges(): Map<String, ChangeType> = index
 
         fun indexType(key: String) = index[key]
         fun workspaceType(key: String) = workspace[key]
@@ -77,7 +77,7 @@ class Status(private val repository: Repository) {
 
         return ls
             .map { (it, stat) -> checkPath(index, it, stat) }
-            .reduce { acc, scan -> acc + scan }
+            .fold(Scan()) { acc, scan -> acc + scan }
     }
 
     private fun checkPath(index: Index.Loaded, path: Path, stat: FileStat): Scan =

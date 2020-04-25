@@ -1,5 +1,6 @@
 package com.github.arian.gikt.database
 
+import com.github.arian.gikt.Mode
 import com.github.arian.gikt.relativeTo
 import com.github.arian.gikt.utf8
 import java.nio.charset.Charset

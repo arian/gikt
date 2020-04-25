@@ -2,6 +2,7 @@ package com.github.arian.gikt.index
 
 import com.github.arian.gikt.FileStat
 import com.github.arian.gikt.Lockfile
+import com.github.arian.gikt.Mode
 import com.github.arian.gikt.database.ObjectId
 import com.github.arian.gikt.parentPaths
 import com.github.arian.gikt.utf8
@@ -16,8 +17,6 @@ import java.util.SortedSet
 import kotlin.math.min
 
 private const val MAX_PATH_SIZE = 0xFFF
-private const val REGULAR_MODE = 33188 // 0100644
-private const val EXECUTABLE_MODE = 33261 // 0100744
 private const val ENTRY_BLOCK = 8
 private const val ENTRY_MIN_SIZE = 64
 
@@ -59,7 +58,7 @@ data class Entry(
 
     constructor(path: Path, oid: ObjectId, stat: FileStat) : this(path.toString(), oid, stat)
 
-    private val mode = modeForStat(stat)
+    val mode = Mode.fromStat(stat)
     private val pathBytes = key.toByteArray()
     private val flags = min(pathBytes.size, MAX_PATH_SIZE)
 
@@ -72,7 +71,7 @@ data class Entry(
             stat.mtimeNS.to32Bit(),
             stat.dev.to32Bit(),
             stat.ino.to32Bit(),
-            mode.to32Bit(),
+            mode.asInt.to32Bit(),
             stat.uid.to32Bit(),
             stat.gid.to32Bit(),
             stat.size.to32Bit(),
@@ -114,7 +113,7 @@ data class Entry(
                 mtimeNS = mtimeNS,
                 dev = dev.toLong(),
                 ino = ino.toLong(),
-                executable = mode == EXECUTABLE_MODE,
+                executable = mode == Mode.EXECUTABLE.asInt,
                 uid = uid,
                 gid = gid,
                 size = size.toLong()
@@ -122,16 +121,10 @@ data class Entry(
 
             return Entry(pathBytes.utf8(), oid, stat)
         }
-
-        private fun modeForStat(stat: FileStat) =
-            when (stat.executable) {
-                true -> EXECUTABLE_MODE
-                false -> REGULAR_MODE
-            }
     }
 
     fun statMatch(stat: FileStat): Boolean {
-        return mode == modeForStat(stat) &&
+        return mode == Mode.fromStat(stat) &&
             (this.stat.size == 0L || this.stat.size == stat.size)
     }
 
@@ -260,6 +253,7 @@ class Index(private val pathname: Path) {
     }
 
     open class Loaded internal constructor(private val index: Index) {
+        operator fun get(key: String): Entry? = index.entries[key]
         fun forEach(fn: (Entry) -> Unit) = index.forEach(fn)
         fun toList() = index.toList()
         fun tracked(it: String): Boolean = index.tracked(it)

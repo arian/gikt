@@ -2,6 +2,7 @@ package com.github.arian.gikt.index
 
 import com.github.arian.gikt.FileStat
 import com.github.arian.gikt.Lockfile
+import com.github.arian.gikt.Mode
 import com.github.arian.gikt.database.Blob
 import com.github.arian.gikt.database.ObjectId
 import com.github.arian.gikt.database.toHexString
@@ -229,6 +230,26 @@ class IndexTest(private val fileSystemProvider: FileSystemExtension.FileSystemPr
                 "test/refs.kt"
             ), list
         )
+    }
+
+    @Test
+    fun `entry executable mode`() {
+        val entry = Entry(
+            workspacePath.resolve("a").relativeTo(workspacePath),
+            ObjectId("1234512345123451234512345123451234512345"),
+            FileStat(executable = true)
+        )
+        assertEquals(Mode.EXECUTABLE, entry.mode)
+    }
+
+    @Test
+    fun `entry regular mode`() {
+        val entry = Entry(
+            workspacePath.resolve("a").relativeTo(workspacePath),
+            ObjectId("1234512345123451234512345123451234512345"),
+            FileStat()
+        )
+        assertEquals(Mode.REGULAR, entry.mode)
     }
 
     @Test

@@ -36,13 +36,13 @@ class Status(ctx: CommandContext) : AbstractCommand(ctx) {
     private fun printLongFormat(scan: Status.Scan) {
         printChanges(
             "Changes to be committed",
-            scan.changes.indexChanges(),
+            scan.changes.indexChanges().keys,
             Style.GREEN
         ) { longStatus(scan.changes.indexType(it)).padEnd(12) }
 
         printChanges(
             "Changes not staged for commit",
-            scan.changes.workspaceChanges(),
+            scan.changes.workspaceChanges().keys,
             Style.RED
         ) { longStatus(scan.changes.workspaceType(it)).padEnd(12) }
 
