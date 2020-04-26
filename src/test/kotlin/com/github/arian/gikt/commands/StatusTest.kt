@@ -259,4 +259,51 @@ class StatusTest {
             )
         }
     }
+
+    @Nested
+    inner class LongStatus {
+
+        private fun assertStatusLong(output: String) {
+            val execution = cmd.cmd("status")
+            assertEquals(output, execution.stdout.trimEnd())
+            assertEquals(0, execution.status)
+        }
+
+        @BeforeEach
+        fun before() {
+            cmd.writeFile("1.txt", "one")
+            cmd.cmd("add", ".")
+            cmd.commit("commit message")
+        }
+
+        @Test
+        fun `prints nothing when no files are changed`() {
+            assertStatusLong("nothing to commit, working tree clean")
+        }
+
+        @Test
+        fun changes() {
+            cmd.writeFile("1.txt", "changed")
+            assertStatusLong(
+                """ |Changes not staged for commit:
+                    |
+                    |${"\t"}modified:   1.txt
+                    |
+                    |no changes added to commit
+                """.trimMargin()
+            )
+        }
+
+        @Test
+        fun `staged changes`() {
+            cmd.writeFile("1.txt", "changed")
+            cmd.cmd("add", "1.txt")
+            assertStatusLong(
+                """ |Changes to be committed:
+                    |
+                    |${"\t"}modified:   1.txt
+                """.trimMargin()
+            )
+        }
+    }
 }

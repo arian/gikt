@@ -39,7 +39,7 @@ class DiffTest {
                 | A
                 |+C
             """.trimMargin(),
-            d.joinToString("\n") { "${it.type.symbol}${it.line}" }
+            d.joinToString("\n") { "$it" }
         )
     }
 
@@ -62,7 +62,7 @@ class DiffTest {
                 | A
                 |+C
             """.trimMargin(),
-            d.joinToString("\n") { "${it.type.symbol}${it.line}" }
+            d.joinToString("\n") { "$it" }
         )
     }
 }

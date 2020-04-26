@@ -16,13 +16,18 @@ class DiffTest {
         cmd.commit("commit message")
     }
 
+    private fun assertDiffExecution(expected: String, execution: CommandHelper.CommandTestExecution) {
+        val lines = expected.lineSequence().count()
+        assertEquals(expected, execution.stdout.lineSequence().take(lines).joinToString(separator = "\n"))
+        assertEquals(0, execution.status)
+    }
+
     @Nested
     inner class WorkspaceChanges {
 
-        private fun assertDiff(output: String) {
+        private fun assertDiff(expected: String) {
             val execution = cmd.cmd("diff")
-            assertEquals(output, execution.stdout.trimEnd())
-            assertEquals(0, execution.status)
+            assertDiffExecution(expected, execution)
         }
 
         @Test
@@ -84,10 +89,9 @@ class DiffTest {
     @Nested
     inner class CachedChanges {
 
-        private fun assertDiffCached(output: String) {
+        private fun assertDiffCached(expected: String) {
             val execution = cmd.cmd("diff", "--cached")
-            assertEquals(output, execution.stdout.trimEnd())
-            assertEquals(0, execution.status)
+            assertDiffExecution(expected, execution)
         }
 
         @Test

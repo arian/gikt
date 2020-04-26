@@ -37,16 +37,26 @@ class Status(ctx: CommandContext) : AbstractCommand(ctx) {
         printChanges(
             "Changes to be committed",
             scan.changes.indexChanges(),
-            Style.GREEN
-        ) { longStatus(it.changeType).padEnd(12) }
+            Style.GREEN,
+            type = { longStatus(it.changeType).padEnd(12) },
+            name = { it.key }
+        )
 
         printChanges(
             "Changes not staged for commit",
             scan.changes.workspaceChanges(),
-            Style.RED
-        ) { longStatus(it.changeType).padEnd(12) }
+            Style.RED,
+            type = { longStatus(it.changeType).padEnd(12) },
+            name = { it.key }
+        )
 
-        printChanges("Untracked files", scan.untracked, Style.RED) { "" }
+        printChanges(
+            "Untracked files",
+            scan.untracked,
+            Style.RED,
+            type = { "" },
+            name = { it }
+        )
 
         printCommitStatus(scan)
     }
@@ -64,7 +74,8 @@ class Status(ctx: CommandContext) : AbstractCommand(ctx) {
         message: String,
         changeset: Set<T>,
         style: Style,
-        type: (T) -> String
+        type: (T) -> String,
+        name: (T) -> String
     ) {
 
         if (changeset.isEmpty()) {
@@ -76,7 +87,7 @@ class Status(ctx: CommandContext) : AbstractCommand(ctx) {
 
         changeset.forEach {
             val status = type(it)
-            println("\t" + fmt(style, status + it))
+            println("\t" + fmt(style, status + name(it)))
         }
 
         println("")

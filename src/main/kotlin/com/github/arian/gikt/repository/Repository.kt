@@ -4,6 +4,8 @@ import com.github.arian.gikt.Refs
 import com.github.arian.gikt.Workspace
 import com.github.arian.gikt.database.Database
 import com.github.arian.gikt.database.Entry as DatabaseEntry
+import com.github.arian.gikt.database.GiktObject
+import com.github.arian.gikt.database.ObjectId
 import com.github.arian.gikt.database.Tree
 import com.github.arian.gikt.index.Index
 import com.github.arian.gikt.relativeTo
@@ -27,4 +29,7 @@ class Repository(val rootPath: Path) {
     fun buildTree(entries: List<DatabaseEntry>) = Tree.build(rootPath, entries)
 
     fun status() = Status(this)
+
+    fun loadObject(oid: ObjectId): GiktObject =
+        database.load(rootPath, oid)
 }

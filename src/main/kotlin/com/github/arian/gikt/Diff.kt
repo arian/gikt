@@ -8,7 +8,9 @@ class Diff {
         Del("-")
     }
 
-    data class Edit(val type: DiffType, val line: String)
+    data class Edit(val type: DiffType, val line: String) {
+        override fun toString(): String = "${type.symbol}$line"
+    }
 
     private data class PositionPairs(val prevX: Int, val prevY: Int, val x: Int, val y: Int)
 

@@ -1,16 +1,31 @@
 package com.github.arian.gikt.commands
 
+import com.github.arian.gikt.Diff
 import com.github.arian.gikt.Mode
 import com.github.arian.gikt.database.Blob
 import com.github.arian.gikt.database.ObjectId
 import com.github.arian.gikt.database.TreeEntry
 import com.github.arian.gikt.index.Entry
 import com.github.arian.gikt.repository.Status
+import com.github.arian.gikt.utf8
 import java.nio.file.Path
+import java.util.Objects
 
 class Diff(ctx: CommandContext) : AbstractCommand(ctx) {
 
-    private data class Target(val path: String, val oid: ObjectId, val mode: Mode? = null)
+    private data class Target(
+        val path: String,
+        val oid: ObjectId,
+        val mode: Mode? = null,
+        val data: ByteArray
+    ) {
+        override fun equals(other: Any?) = when (other) {
+            is Target -> other.oid == oid && other.path == path
+            else -> false
+        }
+
+        override fun hashCode(): Int = Objects.hash(path, oid)
+    }
 
     override fun run() {
 
@@ -44,21 +59,28 @@ class Diff(ctx: CommandContext) : AbstractCommand(ctx) {
         }
     }
 
-    private fun fromIndex(entry: Entry): Target =
-        Target(entry.key, entry.oid, entry.mode)
+    private fun fromIndex(entry: Entry): Target {
+        val blob = repository.loadObject(entry.oid)
+        return Target(entry.key, entry.oid, entry.mode, blob.data)
+    }
 
     private fun fromFile(path: String, scan: Status.Scan): Target {
         val blob = Blob(repository.workspace.readFile(path))
         val mode = scan.stats[path]?.let { Mode.fromStat(it) } ?: Mode.REGULAR
-        return Target(path, blob.oid, mode)
+        return Target(path, blob.oid, mode, blob.data)
     }
 
     private fun fromNothing(path: String): Target {
-        return Target(path = path, oid = ObjectId(ByteArray(20) { 0.toByte() }))
+        return Target(
+            path = path,
+            oid = ObjectId(ByteArray(20) { 0.toByte() }),
+            data = ByteArray(0)
+        )
     }
 
     private fun fromHead(entry: TreeEntry): Target {
-        return Target(entry.name.toString(), entry.oid, entry.mode)
+        val blob = repository.loadObject(entry.oid)
+        return Target(entry.name.toString(), entry.oid, entry.mode, blob.data)
     }
 
     private fun printDiff(a: Target, b: Target) {
@@ -99,5 +121,8 @@ class Diff(ctx: CommandContext) : AbstractCommand(ctx) {
         println(oidRange)
         println("--- ${a.path}")
         println("+++ ${b.path}")
+
+        val edits = Diff.diff(a.data.utf8(), b.data.utf8())
+        edits.forEach { println("$it") }
     }
 }
