@@ -17,7 +17,7 @@ class Diff(ctx: CommandContext) : AbstractCommand(ctx) {
         val path: String,
         val oid: ObjectId,
         val mode: Mode? = null,
-        val data: ByteArray
+        val data: ByteArray?
     ) {
         override fun equals(other: Any?) = when (other) {
             is Target -> other.oid == oid && other.path == path
@@ -74,7 +74,7 @@ class Diff(ctx: CommandContext) : AbstractCommand(ctx) {
         return Target(
             path = path,
             oid = ObjectId(ByteArray(20) { 0.toByte() }),
-            data = ByteArray(0)
+            data = null
         )
     }
 
@@ -122,7 +122,12 @@ class Diff(ctx: CommandContext) : AbstractCommand(ctx) {
         println("--- ${a.path}")
         println("+++ ${b.path}")
 
-        val edits = Diff.diff(a.data.utf8(), b.data.utf8())
-        edits.forEach { println("$it") }
+        val hunks = Diff.diffHunks(a.data?.utf8(), b.data?.utf8())
+        hunks.forEach { printDiffHunk(it) }
+    }
+
+    private fun printDiffHunk(hunk: Diff.Hunk) {
+        println(hunk.header)
+        hunk.edits.forEach { println(it.toString()) }
     }
 }
