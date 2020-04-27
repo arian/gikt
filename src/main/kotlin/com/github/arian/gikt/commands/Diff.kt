@@ -2,6 +2,7 @@ package com.github.arian.gikt.commands
 
 import com.github.arian.gikt.Diff
 import com.github.arian.gikt.Mode
+import com.github.arian.gikt.Style
 import com.github.arian.gikt.database.Blob
 import com.github.arian.gikt.database.ObjectId
 import com.github.arian.gikt.database.TreeEntry
@@ -83,6 +84,9 @@ class Diff(ctx: CommandContext) : AbstractCommand(ctx) {
         return Target(entry.name.toString(), entry.oid, entry.mode, blob.data)
     }
 
+    private fun header(string: String) =
+        println(fmt(Style.BOLD, string))
+
     private fun printDiff(a: Target, b: Target) {
         if (a.oid == b.oid && a.mode == b.mode) {
             return
@@ -91,19 +95,19 @@ class Diff(ctx: CommandContext) : AbstractCommand(ctx) {
         val aFull = a.copy(path = Path.of("a").resolve(a.path).toString())
         val bFull = b.copy(path = Path.of("b").resolve(b.path).toString())
 
-        println("diff --git ${aFull.path} ${bFull.path}")
+        header("diff --git ${aFull.path} ${bFull.path}")
         printDiffMode(aFull, bFull)
         printDiffContent(aFull, bFull)
     }
 
     private fun printDiffMode(a: Target, b: Target) {
         if (a.mode == null && b.mode != null) {
-            println("new file mode ${b.mode.mode}")
+            header("new file mode ${b.mode.mode}")
         } else if (a.mode != null && b.mode != null && a.mode != b.mode) {
-            println("old mode ${a.mode.mode}")
-            println("new mode ${b.mode.mode}")
+            header("old mode ${a.mode.mode}")
+            header("new mode ${b.mode.mode}")
         } else if (b.mode == null && a.mode != null) {
-            println("deleted file mode ${a.mode.mode}")
+            header("deleted file mode ${a.mode.mode}")
         }
     }
 
@@ -118,16 +122,22 @@ class Diff(ctx: CommandContext) : AbstractCommand(ctx) {
             else -> oidRangeBegin
         }
 
-        println(oidRange)
-        println("--- ${a.path}")
-        println("+++ ${b.path}")
+        header(oidRange)
+        header("--- ${a.path}")
+        header("+++ ${b.path}")
 
         val hunks = Diff.diffHunks(a.data?.utf8(), b.data?.utf8())
         hunks.forEach { printDiffHunk(it) }
     }
 
     private fun printDiffHunk(hunk: Diff.Hunk) {
-        println(hunk.header)
-        hunk.edits.forEach { println(it.toString()) }
+        println(fmt(Style.CYAN, hunk.header))
+        hunk.edits.forEach {
+            when (it) {
+                is Diff.Edit.Eql -> println(it.toString())
+                is Diff.Edit.Ins -> println(fmt(Style.GREEN, it.toString()))
+                is Diff.Edit.Del -> println(fmt(Style.RED, it.toString()))
+            }
+        }
     }
 }
