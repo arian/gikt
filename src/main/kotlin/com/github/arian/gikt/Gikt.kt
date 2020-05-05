@@ -1,7 +1,7 @@
 package com.github.arian.gikt
 
-import com.github.arian.gikt.commands.Command
 import com.github.arian.gikt.commands.CommandContext
+import com.github.arian.gikt.commands.Commands
 import com.github.arian.gikt.commands.Environment
 import java.nio.file.FileSystems
 import java.time.Clock
@@ -27,6 +27,6 @@ fun main(args: Array<String>) {
         clock = Clock.systemDefaultZone()
     )
 
-    val cmd = Command.execute(args.getOrNull(0) ?: "help", ctx)
+    val cmd = Commands.execute(args.getOrNull(0) ?: "help", ctx)
     exitProcess(cmd.status)
 }

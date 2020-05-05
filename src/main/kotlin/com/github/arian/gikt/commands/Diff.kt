@@ -2,7 +2,7 @@ package com.github.arian.gikt.commands
 
 import com.github.arian.gikt.Diff
 import com.github.arian.gikt.Mode
-import com.github.arian.gikt.Style
+import com.github.arian.gikt.commands.util.Style
 import com.github.arian.gikt.database.Blob
 import com.github.arian.gikt.database.ObjectId
 import com.github.arian.gikt.database.TreeEntry

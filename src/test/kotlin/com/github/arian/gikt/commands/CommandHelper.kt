@@ -97,7 +97,7 @@ class CommandHelper : Closeable {
             clock = Clock.systemDefaultZone()
         )
 
-        val execution = Command.execute(name, ctx)
+        val execution = Commands.execute(name, ctx)
 
         return CommandTestExecution(
             status = execution.status,

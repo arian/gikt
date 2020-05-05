@@ -1,4 +1,4 @@
-package com.github.arian.gikt
+package com.github.arian.gikt.commands.util
 
 enum class Style(private val code: Int) {
     BOLD(1),

@@ -1,6 +1,6 @@
 package com.github.arian.gikt.commands
 
-import com.github.arian.gikt.Style
+import com.github.arian.gikt.commands.util.Style
 import com.github.arian.gikt.repository.Status
 
 class Status(ctx: CommandContext) : AbstractCommand(ctx) {

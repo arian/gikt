@@ -1,6 +1,7 @@
 package com.github.arian.gikt.commands
 
-import com.github.arian.gikt.Style
+import com.github.arian.gikt.commands.util.Pager
+import com.github.arian.gikt.commands.util.Style
 import com.github.arian.gikt.repository.Repository
 import java.io.InputStream
 import java.io.PrintStream
@@ -8,6 +9,7 @@ import java.nio.file.Path
 import java.time.Clock
 
 typealias Environment = (key: String) -> String?
+typealias CommandFactory = (ctx: CommandContext) -> Command
 
 data class CommandContext(
     val dir: Path,
@@ -25,24 +27,28 @@ data class CommandExecution(
     val status: Int
 )
 
-abstract class AbstractCommand(val ctx: CommandContext) {
+interface Command {
+    fun execute(): CommandExecution
+}
+
+abstract class AbstractCommand(val ctx: CommandContext) : Command {
 
     internal val repository by lazy { Repository(ctx.dir) }
 
     internal abstract fun run()
 
-    fun execute(): CommandExecution {
+    override fun execute(): CommandExecution {
         val status = try {
             run()
             0
-        } catch (exit: Command.Exit) {
+        } catch (exit: Commands.Exit) {
             exit.code
         }
         return CommandExecution(ctx, status)
     }
 
     fun exitProcess(code: Int = 0): Nothing {
-        throw Command.Exit(code)
+        throw Commands.Exit(code)
     }
 
     fun println(msg: String) =
@@ -56,28 +62,38 @@ abstract class AbstractCommand(val ctx: CommandContext) {
         }
 }
 
-object Command {
+class PagerCommand(private val ctx: CommandContext, private val subCmdFactory: CommandFactory) : Command {
+    override fun execute(): CommandExecution =
+        when (ctx.isatty) {
+            true -> Pager().start { pagerOut -> subCmdFactory(ctx.copy(stdout = pagerOut)).execute() }
+            false -> subCmdFactory(ctx).execute()
+        }
+}
 
-    private val commands = mapOf<String, (CommandContext) -> AbstractCommand>(
-        "init" to { ctx: CommandContext -> Init(ctx) },
-        "add" to { ctx: CommandContext -> Add(ctx) },
-        "commit" to { ctx: CommandContext -> Commit(ctx) },
-        "status" to { ctx: CommandContext -> Status(ctx) },
-        "diff" to { ctx: CommandContext -> Diff(ctx) },
-        "ls-files" to { ctx: CommandContext -> ListFiles(ctx) },
-        "show-head" to { ctx: CommandContext -> ShowHead(ctx) },
-        "help" to { ctx: CommandContext -> Help(ctx) }
+object Commands {
+
+    private val commands: Map<String, CommandFactory> = mapOf(
+        "init" to cmd { Init(it) },
+        "add" to cmd { Add(it) },
+        "commit" to cmd { Commit(it) },
+        "status" to cmd { Status(it) },
+        "diff" to withPager { Diff(it) },
+        "ls-files" to cmd { ListFiles(it) },
+        "show-head" to cmd { ShowHead(it) },
+        "paged" to withPager { Paged(it) },
+        "help" to cmd { Help(it) }
     )
 
-    fun execute(name: String, ctx: CommandContext): CommandExecution {
+    private fun cmd(fn: CommandFactory): CommandFactory = fn
 
-        val command = commands[name]?.invoke(ctx)
-            ?: throw Unknown("'$name' is not a gikt command.")
+    private fun withPager(fn: CommandFactory): CommandFactory =
+        { ctx -> PagerCommand(ctx, fn) }
 
-        return command.execute()
-    }
-
-    class Unknown(msg: String) : Exception(msg)
+    fun execute(name: String, ctx: CommandContext): CommandExecution =
+        commands[name]
+            ?.invoke(ctx)
+            ?.execute()
+            ?: CommandExecution(ctx, 1).also { ctx.stderr.println("'$name' is not a gikt command.") }
 
     class Exit(val code: Int) : Exception("Process exit with $code")
 }
