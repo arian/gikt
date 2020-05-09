@@ -73,15 +73,16 @@ class PagerCommand(private val ctx: CommandContext, private val subCmdFactory: C
 object Commands {
 
     private val commands: Map<String, CommandFactory> = mapOf(
-        "init" to cmd { Init(it) },
         "add" to cmd { Add(it) },
+        "branch" to cmd { Branch(it) },
         "commit" to cmd { Commit(it) },
-        "status" to cmd { Status(it) },
         "diff" to withPager { Diff(it) },
+        "help" to cmd { Help(it) },
+        "init" to cmd { Init(it) },
         "ls-files" to cmd { ListFiles(it) },
-        "show-head" to cmd { ShowHead(it) },
         "paged" to withPager { Paged(it) },
-        "help" to cmd { Help(it) }
+        "show-head" to cmd { ShowHead(it) },
+        "status" to cmd { Status(it) }
     )
 
     private fun cmd(fn: CommandFactory): CommandFactory = fn

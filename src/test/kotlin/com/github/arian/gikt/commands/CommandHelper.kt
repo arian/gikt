@@ -7,6 +7,7 @@ import com.github.arian.gikt.makeExecutable
 import com.github.arian.gikt.makeUnExecutable
 import com.github.arian.gikt.makeUnreadable
 import com.github.arian.gikt.mkdirp
+import com.github.arian.gikt.readText
 import com.github.arian.gikt.repository.Repository
 import com.github.arian.gikt.touch
 import com.github.arian.gikt.write
@@ -46,6 +47,9 @@ class CommandHelper : Closeable {
             write(contents)
             makeUnExecutable()
         }
+
+    fun readFile(name: String): String =
+        root.resolve(name).readText()
 
     fun makeUnreadable(name: String): Path =
         root.resolve(name).makeUnreadable()
