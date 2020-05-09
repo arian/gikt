@@ -3,7 +3,7 @@ package com.github.arian.gikt
 import com.github.arian.gikt.database.ObjectId
 import java.nio.file.Path
 
-class Refs(pathname: Path) {
+class Refs(private val pathname: Path) {
     class InvalidBranch(msg: String) : Exception(msg)
 
     private val headPath = pathname.resolve("HEAD")
@@ -15,14 +15,28 @@ class Refs(pathname: Path) {
     }
 
     fun readHead(): ObjectId? =
-        headPath
+        readRefFile(headPath)
+
+    private fun readRefFile(path: Path): ObjectId? =
+        path
             .takeIf { it.exists() }
             ?.readText()
             ?.let { ObjectId(it.trim()) }
 
-    fun createBranch(branchName: String) {
+    private fun pathForName(name: String): Path? =
+        listOf(pathname, refsPath, headsPath)
+            .asSequence()
+            .map { it.resolve(name) }
+            .find { it.exists() }
 
-        if (INVALID_NAME.containsMatchIn(branchName)) {
+    fun readRef(name: String): ObjectId? =
+        pathForName(name)?.let {
+            readRefFile(it)
+        }
+
+    fun createBranch(branchName: String, startOid: ObjectId) {
+
+        if (!Revision.validRef(branchName)) {
             throw InvalidBranch("'$branchName' is not a valid branch name.")
         }
 
@@ -32,8 +46,7 @@ class Refs(pathname: Path) {
             throw InvalidBranch("A branch named '$branchName' already exists.")
         }
 
-        readHead()?.also { updateRefFile(path, it) }
-            ?: throw IllegalStateException("Couldn't read HEAD")
+        updateRefFile(path, startOid)
     }
 
     private fun updateRefFile(path: Path, oid: ObjectId) {
@@ -48,20 +61,5 @@ class Refs(pathname: Path) {
             path.parent.mkdirp()
             update()
         }
-    }
-
-    companion object {
-        val INVALID_NAME = Regex(
-            """
-              ^\.
-            | \/\.
-            | \.\.
-            | \/$
-            | \.lock$
-            | @\{
-            | [\x00-\x20*:?\[\\^~\x7f]
-            """.trimIndent(),
-            RegexOption.COMMENTS
-        )
     }
 }
