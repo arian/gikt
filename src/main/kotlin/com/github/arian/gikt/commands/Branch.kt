@@ -26,6 +26,10 @@ class Branch(ctx: CommandContext) : AbstractCommand(ctx) {
 
             this.repository.refs.createBranch(branchName, startOid)
         } catch (e: Revision.InvalidObject) {
+            e.errors.forEach { hint ->
+                ctx.stderr.println("error: ${hint.message}")
+                hint.hints.forEach { line -> ctx.stderr.println("hint: $line") }
+            }
             ctx.stderr.println("fatal: ${e.message}")
             exitProcess(128)
         } catch (e: Refs.InvalidBranch) {

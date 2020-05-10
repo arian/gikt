@@ -1,5 +1,6 @@
 package com.github.arian.gikt.database
 
+import com.github.arian.gikt.utf8
 import java.io.ByteArrayInputStream
 import java.util.Scanner
 
@@ -20,9 +21,12 @@ data class Commit(
         |${parentString}author $author
         |committer $author
         |
-        |${message.toString(Charsets.UTF_8)}
+        |${message.utf8()}
         """.trimMargin().toByteArray(Charsets.UTF_8)
     }
+
+    val title: String get() =
+        message.utf8().lineSequence().first()
 
     override fun equals(other: Any?): Boolean =
         super.equals(other)

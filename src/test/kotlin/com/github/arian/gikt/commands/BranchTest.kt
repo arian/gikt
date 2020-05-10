@@ -1,5 +1,6 @@
 package com.github.arian.gikt.commands
 
+import com.github.arian.gikt.database.Blob
 import com.github.arian.gikt.database.ObjectId
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
@@ -71,5 +72,100 @@ class BranchTest {
         val topicRef = cmd.readFile(".git/refs/heads/topic").trim()
 
         assertEquals(second.hex, topicRef)
+    }
+
+    @Test
+    fun `creates a new branch from another branch`() {
+        commitFile()
+        val second = commitFile()
+        cmd.cmd("branch", "topic")
+        val topicRef = cmd.readFile(".git/refs/heads/topic").trim()
+        assertEquals(second.hex, topicRef)
+
+        commitFile()
+
+        val execution = cmd.cmd("branch", "feature", "topic")
+        assertEquals(0, execution.status)
+
+        val featureRef = cmd.readFile(".git/refs/heads/feature").trim()
+
+        assertEquals(topicRef, featureRef)
+    }
+
+    @Test
+    fun `creates a new branch from too short (2) sha1`() {
+        commitFile()
+        val second = commitFile()
+        assertEquals(ObjectId("203bb2a8f80adb04857f6b9882355a35797e0c16"), second)
+
+        val execution = cmd.cmd("branch", "topic", "20")
+        assertEquals(128, execution.status)
+        assertEquals(
+            """
+            fatal: Not a valid object name: '20'
+
+            """.trimIndent(),
+            execution.stderr
+        )
+    }
+
+    @Test
+    fun `creates a new branch from too short (3) sha1`() {
+        commitFile()
+        val second = commitFile()
+        assertEquals(ObjectId("203bb2a8f80adb04857f6b9882355a35797e0c16"), second)
+
+        val execution = cmd.cmd("branch", "topic", "203")
+        assertEquals(128, execution.status)
+        assertEquals(
+            """
+            fatal: Not a valid object name: '203'
+
+            """.trimIndent(),
+            execution.stderr
+        )
+    }
+
+    @Test
+    fun `creates a new branch from ambiguous sha1`() {
+        commitFile()
+        val second = commitFile()
+        assertEquals(ObjectId("203bb2a8f80adb04857f6b9882355a35797e0c16"), second)
+
+        cmd.copy(
+            ".git/objects/20/3bb2a8f80adb04857f6b9882355a35797e0c16",
+            ".git/objects/20/3bb2b8f80adb04857f6b9882355a35797e0c17"
+        )
+
+        val execution = cmd.cmd("branch", "topic", "203bb2")
+        assertEquals(128, execution.status)
+        assertEquals(
+            """
+            error: short SHA1 203bb2 is ambiguous
+            hint: The candidates are:
+            hint:  203bb2a commit 2019-08-14 - commit
+            hint:  203bb2b commit 2019-08-14 - commit
+            fatal: Not a valid object name: '203bb2'
+
+            """.trimIndent(),
+            execution.stderr
+        )
+    }
+
+    @Test
+    fun `creates a new branch from sha1 object that's not a commit`() {
+        val blob = Blob(data = "".toByteArray(Charsets.UTF_8))
+        cmd.repository.database.store(blob)
+
+        val execution = cmd.cmd("branch", "topic", blob.oid.short)
+        assertEquals(128, execution.status)
+        assertEquals(
+            """
+            error: object e69de29bb2d1d6434b8b29ae775ad8c2e48c5391 is a blob, not a commit
+            fatal: Not a valid object name: 'e69de29'
+
+            """.trimIndent(),
+            execution.stderr
+        )
     }
 }

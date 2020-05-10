@@ -19,6 +19,8 @@ import java.io.PrintStream
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Clock
+import java.time.Instant
+import java.time.ZoneId
 
 class CommandHelper : Closeable {
 
@@ -50,6 +52,9 @@ class CommandHelper : Closeable {
 
     fun readFile(name: String): String =
         root.resolve(name).readText()
+
+    fun copy(source: String, target: String): Path =
+        Files.copy(root.resolve(source), root.resolve(target))
 
     fun makeUnreadable(name: String): Path =
         root.resolve(name).makeUnreadable()
@@ -90,6 +95,11 @@ class CommandHelper : Closeable {
         val stderr = ByteArrayOutputStream()
         val stdout = ByteArrayOutputStream()
 
+        val clock = Clock.fixed(
+            Instant.parse("2019-08-14T10:08:22.00Z"),
+            ZoneId.of("Europe/Amsterdam")
+        )
+
         val ctx = CommandContext(
             dir = root,
             args = args.toList(),
@@ -98,7 +108,7 @@ class CommandHelper : Closeable {
             stdin = ByteArrayInputStream(stdin?.toByteArray(Charsets.UTF_8) ?: ByteArray(0)),
             env = { env[it] },
             isatty = false,
-            clock = Clock.systemDefaultZone()
+            clock = clock
         )
 
         val execution = Commands.execute(name, ctx)

@@ -4,6 +4,7 @@ import com.github.arian.gikt.database.ObjectId
 import java.nio.file.Path
 
 class Refs(private val pathname: Path) {
+
     class InvalidBranch(msg: String) : Exception(msg)
 
     private val headPath = pathname.resolve("HEAD")

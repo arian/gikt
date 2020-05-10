@@ -9,13 +9,16 @@ import com.github.arian.gikt.database.ObjectId
 import com.github.arian.gikt.database.Tree
 import com.github.arian.gikt.index.Index
 import com.github.arian.gikt.relativeTo
+import java.io.IOException
 import java.nio.file.Path
 
-class Repository(val rootPath: Path) {
+class Repository(private val rootPath: Path) {
 
-    val gitPath = rootPath.resolve(".git")
-    val dbPath = gitPath.resolve("objects")
-    val indexPath = gitPath.resolve("index")
+    private val gitPath = rootPath.resolve(".git")
+    private val dbPath = gitPath.resolve("objects")
+    private val indexPath = gitPath.resolve("index")
+
+    val relativeRoot: Path get() = relativePath(rootPath)
 
     val workspace by lazy { Workspace(rootPath) }
     val database by lazy { Database(dbPath) }
@@ -31,5 +34,13 @@ class Repository(val rootPath: Path) {
     fun status() = Status(this)
 
     fun loadObject(oid: ObjectId): GiktObject =
-        database.load(rootPath, oid)
+        try {
+            database.load(rootPath, oid)
+        } catch (e: IllegalStateException) {
+            throw BadObject(e, "bad object ${oid.hex}")
+        } catch (e: IOException) {
+            throw BadObject(e, "bad object ${oid.hex}")
+        }
+
+    class BadObject(e: Exception, msg: String) : Exception(msg, e)
 }

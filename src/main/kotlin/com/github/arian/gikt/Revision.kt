@@ -1,6 +1,6 @@
 package com.github.arian.gikt
 
-import com.github.arian.gikt.database.Commit
+import com.github.arian.gikt.database.Commit as DbCommit
 import com.github.arian.gikt.database.ObjectId
 import com.github.arian.gikt.repository.Repository
 
@@ -9,15 +9,25 @@ class Revision(private val repo: Repository, private val expression: String) {
     private val query by lazy { parse(expression) }
 
     fun resolve(): ObjectId =
-        query?.let { resolve(it, repo) }
-            ?: throw InvalidObject("Not a valid object name: '$expression'")
+        when (val res = query?.resolve(repo)) {
+            is Res.Commit -> res.commit.oid
+            is Res.Errors -> throw InvalidObject("Not a valid object name: '$expression'", res.errors)
+            else -> throw InvalidObject("Not a valid object name: '$expression'")
+        }
 
-    class InvalidObject(msg: String) : Exception(msg)
+    class InvalidObject(msg: String, val errors: List<HintedError> = emptyList()) : Exception(msg)
+    class HintedError(msg: String, val hints: List<String> = emptyList()) : Exception(msg)
 
-    sealed class Rev {
+    internal sealed class Rev {
         data class Ref(val name: String) : Rev()
         data class Parent(val rev: Rev) : Rev()
         data class Ancestor(val rev: Rev, val n: Int) : Rev()
+    }
+
+    internal sealed class Res {
+        object Null : Res()
+        data class Commit(val commit: DbCommit) : Res()
+        data class Errors(val errors: List<HintedError>) : Res()
     }
 
     companion object {
@@ -63,30 +73,66 @@ class Revision(private val repo: Repository, private val expression: String) {
                 .takeIf { validRef(it) }
                 ?.let { Rev.Ref(REF_ALIASES.getOrDefault(it, it)) }
 
-        fun parse(revision: String): Rev? =
+        internal fun parse(revision: String): Rev? =
             parseParent(revision)
                 ?: parseAncestor(revision)
                 ?: parseRef(revision)
 
-        fun resolve(revision: Rev, repo: Repository): ObjectId? =
-            when (revision) {
-                is Rev.Parent -> resolve(revision.rev, repo)?.let {
-                    commitParent(it, repo)
+        internal fun Rev.resolve(repo: Repository): Res =
+            when (this) {
+                is Rev.Parent -> rev.resolve(repo).parent(repo)
+                is Rev.Ancestor -> (0 until n).fold(rev.resolve(repo)) { it, _ -> it.parent(repo) }
+                is Rev.Ref -> readRef(name, repo)
+            }
+
+        private fun Res.parent(repo: Repository): Res =
+            when (this) {
+                is Res.Commit -> commitParent(commit.oid, repo)
+                else -> this
+            }
+
+        private fun ObjectId?.toRes(repo: Repository) = when (this) {
+            null -> Res.Null
+            else -> when (val obj = repo.loadObject(this)) {
+                is DbCommit -> Res.Commit(obj)
+                else -> Res.Errors(listOf(HintedError("object ${obj.oid} is a ${obj.type}, not a commit")))
+            }
+        }
+
+        private fun commitParent(oid: ObjectId, repo: Repository): Res =
+            when (val result = oid.toRes(repo)) {
+                is Res.Commit -> result.commit.parent.toRes(repo)
+                else -> result
+            }
+
+        private fun readRef(name: String, repo: Repository): Res =
+            repo.refs.readRef(name)?.toRes(repo)
+                ?: matchObjectId(name, repo)
+
+        private fun matchObjectId(oid: String, repo: Repository): Res {
+            val matches = repo.database.prefixMatch(oid)
+            return when {
+                matches.isEmpty() -> Res.Null
+                matches.size == 1 -> matches.first().toRes(repo)
+                else -> Res.Errors(ambiguousSha1Hints(oid, matches, repo))
+            }
+        }
+
+        private fun ambiguousSha1Hints(oid: String, oids: List<ObjectId>, repo: Repository): List<HintedError> {
+            val objects = oids.sortedBy { it.hex }.map {
+
+                val obj = repo.loadObject(it)
+                val info = " ${it.short} ${obj.type}"
+
+                when (obj) {
+                    is DbCommit -> "$info ${obj.author.shortDate} - ${obj.title}"
+                    else -> info
                 }
-                is Rev.Ancestor -> (0 until revision.n)
-                    .fold(resolve(revision.rev, repo)) { oid: ObjectId?, _ ->
-                        oid?.let { commitParent(it, repo) }
-                    }
-                is Rev.Ref -> readRef(revision.name, repo)
             }
 
-        private fun commitParent(oid: ObjectId, repo: Repository): ObjectId? =
-            when (val obj = repo.loadObject(oid)) {
-                is Commit -> obj.parent
-                else -> null
-            }
-
-        private fun readRef(name: String, repo: Repository): ObjectId? =
-            repo.refs.readRef(name)
+            val message = "short SHA1 $oid is ambiguous"
+            val hints = listOf("The candidates are:") + objects
+            return listOf(HintedError(message, hints))
+        }
     }
 }

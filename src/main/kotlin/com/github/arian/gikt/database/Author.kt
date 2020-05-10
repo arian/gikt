@@ -10,6 +10,9 @@ private val zoneFormatter = DateTimeFormatter.ofPattern("Z")
 
 data class Author(private val name: String, private val email: String, private val now: ZonedDateTime) {
 
+    val shortDate: String get() =
+        DateTimeFormatter.ISO_LOCAL_DATE.format(now)
+
     override fun toString(): String {
         val timestamp = "${now.toEpochSecond()} ${zoneFormatter.format(now)}"
         return "$name <$email> $timestamp"

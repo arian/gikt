@@ -1,12 +1,18 @@
 package com.github.arian.gikt
 
+import com.github.arian.gikt.Revision.Companion.resolve
+import com.github.arian.gikt.Revision.Res
 import com.github.arian.gikt.Revision.Rev
 import com.github.arian.gikt.database.Author
 import com.github.arian.gikt.database.Commit
 import com.github.arian.gikt.database.ObjectId
 import com.github.arian.gikt.repository.Repository
 import com.github.arian.gikt.test.FileSystemExtension
+import java.nio.file.Files
 import java.nio.file.Path
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneId
 import java.time.ZonedDateTime
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -105,125 +111,158 @@ class RevisionTest {
     @ExtendWith(FileSystemExtension::class)
     inner class Resolve(private val fileSystemProvider: FileSystemExtension.FileSystemProvider) {
 
+        private lateinit var ws: Path
         private lateinit var git: Path
 
         @BeforeEach
         fun before() {
-            git = fileSystemProvider.get().getPath("gitk-objects").mkdirp()
+            ws = fileSystemProvider.get().getPath("gitk-objects").mkdirp()
+            git = ws.resolve(".git").mkdirp()
+        }
+
+        private fun commit(parent: ObjectId? = null): Commit {
+            val zoneId = ZoneId.of("Europe/Amsterdam")
+            val time = ZonedDateTime.now(Clock.fixed(Instant.parse("2019-08-14T10:08:22.00Z"), zoneId))
+            return Commit(
+                parent = parent,
+                message = "commit".toByteArray(),
+                author = Author("arian", "arian@example.com", time),
+                tree = ObjectId("abc12def12def12def12def12def12def12def12")
+            )
         }
 
         @Test
         fun `resolve HEAD id`() {
-            val repo = Repository(git)
-            val hex = "abc12abc12abc12abc12abc12abc12abc12abc12"
-            git.resolve(".git").mkdirp()
-            git.resolve(".git/HEAD").write(hex)
-            val oid = Revision.resolve(Rev.Ref("HEAD"), repo)
-            assertEquals(hex, oid?.hex)
+            val repo = Repository(ws)
+            val commit = commit()
+            repo.database.store(commit)
+            git.resolve("HEAD").write(commit.oid.hex)
+            val oid = Rev.Ref("HEAD").resolve(repo)
+            assertEquals(Res.Commit(commit), oid)
         }
 
         @Test
         fun `resolve name from refs`() {
-            val repo = Repository(git)
-            val hex = "abc12abc12abc12abc12abc12abc12abc12abc12"
-            git.resolve(".git/refs").mkdirp()
-            git.resolve(".git/refs/master").write(hex)
-            val oid = Revision.resolve(Rev.Ref("master"), repo)
-            assertEquals(hex, oid?.hex)
+            val repo = Repository(ws)
+            val commit = commit()
+            repo.database.store(commit)
+            git.resolve("refs").mkdirp()
+            git.resolve("refs/master").write(commit.oid.hex)
+            val oid = Rev.Ref("master").resolve(repo)
+            assertEquals(Res.Commit(commit), oid)
         }
 
         @Test
         fun `resolve name from heads`() {
-            val repo = Repository(git)
-            val hex = "abc12abc12abc12abc12abc12abc12abc12abc12"
-            git.resolve(".git/refs/heads").mkdirp()
-            git.resolve(".git/refs/heads/master").write(hex)
-            val oid = Revision.resolve(Rev.Ref("master"), repo)
-            assertEquals(hex, oid?.hex)
+            val repo = Repository(ws)
+            val commit = commit()
+            repo.database.store(commit)
+            git.resolve("refs/heads").mkdirp()
+            git.resolve("refs/heads/master").write(commit.oid.hex)
+            val oid = Rev.Ref("master").resolve(repo)
+            assertEquals(Res.Commit(commit), oid)
         }
 
         @Test
         fun `resolve parent HEAD id`() {
-            git.resolve(".git").mkdirp()
-            val repo = Repository(git)
+            val repo = Repository(ws)
 
-            val root = "def12def12def12def12def12def12def12def12"
-            val commit = Commit(
-                parent = ObjectId(root),
-                message = "commit".toByteArray(),
-                author = Author("author", "auth@or.com", ZonedDateTime.now()),
-                tree = ObjectId("abc12def12def12def12def12def12def12def12")
-            )
+            val root = commit()
+            repo.database.store(root)
+
+            val commit = commit(root.oid)
             repo.database.store(commit)
-            git.resolve(".git/HEAD").write(commit.oid.hex)
 
-            val oid = Revision.parse("HEAD^")?.let { Revision.resolve(it, repo) }
-            assertEquals(root, oid?.hex)
+            git.resolve("HEAD").write(commit.oid.hex)
+
+            val oid = Revision.parse("HEAD^")?.resolve(repo)
+            assertEquals(Res.Commit(root), oid)
         }
 
         @Test
         fun `resolve ancestor HEAD id`() {
-            git.resolve(".git").mkdirp()
-            val repo = Repository(git)
+            val repo = Repository(ws)
 
-            val root = "def12def12def12def12def12def12def12def12"
-            val commit = Commit(
-                parent = ObjectId(root),
-                message = "commit".toByteArray(),
-                author = Author("author", "auth@or.com", ZonedDateTime.now()),
-                tree = ObjectId("abc12def12def12def12def12def12def12def12")
-            )
+            val root = commit()
+            repo.database.store(root)
+
+            val commit = commit(root.oid)
             repo.database.store(commit)
-            git.resolve(".git/HEAD").write(commit.oid.hex)
+            git.resolve("HEAD").write(commit.oid.hex)
 
-            val oid = Revision.parse("HEAD~1")?.let { Revision.resolve(it, repo) }
-            assertEquals(root, oid?.hex)
+            val oid = Revision.parse("HEAD~1")?.resolve(repo)
+            assertEquals(Res.Commit(root), oid)
         }
 
         @Test
         fun `resolve second ancestor HEAD id`() {
-            git.resolve(".git").mkdirp()
-            val repo = Repository(git)
+            val repo = Repository(ws)
 
-            val root = "def12def12def12def12def12def12def12def12"
-            val first = Commit(
-                parent = ObjectId(root),
-                message = "commit".toByteArray(),
-                author = Author("author", "auth@or.com", ZonedDateTime.now()),
-                tree = ObjectId("abc12def12def12def12def12def12def12def12")
-            )
+            val root = commit()
+            repo.database.store(root)
+
+            val first = commit(root.oid)
             repo.database.store(first)
 
-            val second = Commit(
-                parent = first.oid,
-                message = "commit".toByteArray(),
-                author = Author("author", "auth@or.com", ZonedDateTime.now()),
-                tree = ObjectId("abc12def12def12def12def12def12def12def12")
-            )
+            val second = commit(first.oid)
             repo.database.store(second)
 
-            git.resolve(".git/HEAD").write(second.oid.hex)
+            git.resolve("HEAD").write(second.oid.hex)
 
-            val oid = Revision.parse("HEAD~2")?.let { Revision.resolve(it, repo) }
-            assertEquals(root, oid?.hex)
+            val oid = Revision.parse("HEAD~2")?.resolve(repo)
+            assertEquals(Res.Commit(root), oid)
         }
 
         @Test
         fun `Revision resolve`() {
-            git.resolve(".git").mkdirp()
-            val repo = Repository(git)
-            val root = "def12def12def12def12def12def12def12def12"
-            git.resolve(".git/HEAD").write(root)
+            val repo = Repository(ws)
+            val root = commit()
+            repo.database.store(root)
+            git.resolve("HEAD").write(root.oid.hex)
             val oid = Revision(repo, "HEAD").resolve()
-            assertEquals(root, oid.hex)
+            assertEquals(root.oid, oid)
         }
 
         @Test
         fun `Revision not found exception`() {
-            git.resolve(".git").mkdirp()
-            val repo = Repository(git)
+            val repo = Repository(ws)
             val e = assertThrows<Revision.InvalidObject> { Revision(repo, "HEAD").resolve() }
             assertEquals("Not a valid object name: 'HEAD'", e.message)
+        }
+
+        @Test
+        fun `resolve from object id`() {
+            val repo = Repository(ws)
+            val first = commit()
+            repo.database.store(first)
+            val oid = Revision(repo, first.oid.hex).resolve()
+            assertEquals(first.oid.hex, oid.hex)
+        }
+
+        @Test
+        fun `resolve from short object id`() {
+            val repo = Repository(ws)
+            val first = commit()
+            repo.database.store(first)
+            val oid = Revision(repo, first.oid.short).resolve()
+            assertEquals(first.oid.hex, oid.hex)
+        }
+
+        @Test
+        fun `resolve from ambiguous short object id`() {
+            val repo = Repository(ws)
+
+            val first = commit()
+            repo.database.store(first)
+            assertEquals(ObjectId("27ca1a59bdd14378635f344ef3bb0563eda96242"), first.oid)
+
+            Files.copy(
+                git.resolve("objects/27/ca1a59bdd14378635f344ef3bb0563eda96242"),
+                git.resolve("objects/27/ca1a59bdd14378635f344ef3bb0563eda962aa")
+            )
+
+            val e = assertThrows<Revision.InvalidObject> { Revision(repo, first.oid.short).resolve() }
+            assertEquals(1, e.errors.size)
         }
     }
 }

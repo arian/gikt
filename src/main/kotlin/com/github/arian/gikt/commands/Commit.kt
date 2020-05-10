@@ -11,9 +11,8 @@ class Commit(ctx: CommandContext) : AbstractCommand(ctx) {
         val email = ctx.env("GIT_AUTHOR_EMAIL") ?: error("please set GIT_AUTHOR_EMAIL")
         val author = Author(name, email, Instant.now(ctx.clock).atZone(ctx.clock.zone))
         val message: ByteArray = ctx.stdin.readAllBytes()
-        val firstLine = message.toString(Charsets.UTF_8).split("\n").getOrNull(0) ?: ""
 
-        if (firstLine.isBlank()) {
+        if (message.isEmpty()) {
             ctx.stderr.println("gikt: empty commit message")
             exitProcess(1)
         }
@@ -32,7 +31,7 @@ class Commit(ctx: CommandContext) : AbstractCommand(ctx) {
         repository.refs.updateHead(commit.oid)
 
         val isRoot = parent?.let { "" } ?: "(root-commit) "
-        println("[$isRoot${commit.oid.hex}] $firstLine")
+        println("[$isRoot${commit.oid.hex}] ${commit.title}")
         exitProcess(0)
     }
 }

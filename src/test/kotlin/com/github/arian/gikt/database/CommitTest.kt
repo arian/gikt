@@ -64,6 +64,32 @@ class CommitTest {
         )
     }
 
+    private fun commitWithMessage(msg: String): Commit {
+        val oid = ObjectId("28e5b0ff3555872675b84c7c0d0119d8899743f0")
+        val zoneId = ZoneId.of("Europe/Amsterdam")
+        val time = ZonedDateTime.now(Clock.fixed(Instant.parse("2019-08-14T10:08:22.00Z"), zoneId))
+        val author = Author("arian", "arian@example.com", time)
+        return Commit(null, oid, author, msg.toByteArray())
+    }
+
+    @Test
+    fun `commit title`() {
+        val commit = commitWithMessage("title")
+        assertEquals("title", commit.title)
+    }
+
+    @Test
+    fun `commit title should be the first line of the message`() {
+        val commit = commitWithMessage("title\nsecond")
+        assertEquals("title", commit.title)
+    }
+
+    @Test
+    fun `empty commit message should result into empty commit title`() {
+        val commit = commitWithMessage("")
+        assertEquals("", commit.title)
+    }
+
     @ParameterizedTest
     @ValueSource(strings = ["", "28e5b0ff3555872675b84c7c0d0119d8899743f1"])
     fun parseCommit(parentHex: String) {

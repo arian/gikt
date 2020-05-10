@@ -193,7 +193,7 @@ class Status(private val repository: Repository) {
 
     private fun loadHeadTree(): Map<String, TreeEntry> {
         val head = repository.refs.readHead() ?: return emptyMap()
-        val rel = repository.relativePath(repository.rootPath)
+        val rel = repository.relativeRoot
         val commit = repository.database.load(rel, head) as? Commit ?: return emptyMap()
         return readTree(commit.tree, rel)
     }
