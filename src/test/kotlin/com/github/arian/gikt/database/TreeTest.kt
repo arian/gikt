@@ -134,6 +134,40 @@ class TreeTest {
     }
 
     @Nested
+    inner class ListAndGet {
+
+        private val path = Path.of(".")
+        private val oid = ObjectId(ByteArray(20) { it.toByte() })
+        private val a = Entry(Path.of("a.txt"), FileStat(), oid)
+        private val b = Entry(Path.of("b.txt"), FileStat(), oid)
+
+        private val tree = Tree(
+            path,
+            mapOf(
+                a.name.toString() to a,
+                b.name.toString() to b
+            )
+        )
+
+        @Test
+        fun `list returns a list of TreeEntry objects`() {
+            val list = tree.list()
+            assertEquals(2, list.size)
+        }
+
+        @Test
+        fun `get by string`() {
+            assertEquals(b, tree["b.txt"])
+        }
+
+        @Test
+        fun `get by path`() {
+            assertEquals(b, tree[b.name])
+            assertEquals(b, tree[Path.of("b.txt")])
+        }
+    }
+
+    @Nested
     inner class Parse {
 
         @Test
@@ -149,7 +183,7 @@ class TreeTest {
             val path = Path.of(".")
 
             val oid = ObjectId(ByteArray(20) { it.toByte() })
-            val a = Entry(path.resolve("a.txt"), FileStat(), oid)
+            val a = Entry(Path.of("a.txt"), FileStat(), oid)
 
             val tree = Tree(path, mapOf(a.name.toString() to a))
             val parsed = Tree.parse(path, tree.data)
@@ -161,8 +195,8 @@ class TreeTest {
             val path = Path.of(".")
 
             val oid = ObjectId(ByteArray(20) { it.toByte() })
-            val a = Entry(path.resolve("a.txt"), FileStat(), oid)
-            val b = Entry(path.resolve("b.txt"), FileStat(), oid)
+            val a = Entry(Path.of("a.txt"), FileStat(), oid)
+            val b = Entry(Path.of("b.txt"), FileStat(), oid)
 
             val tree = Tree(
                 path,
@@ -180,8 +214,8 @@ class TreeTest {
             val path = Path.of(".")
 
             val oid = ObjectId(ByteArray(20) { it.toByte() })
-            val a = Entry(path.resolve("a.txt"), FileStat(), oid)
-            val b = Entry(path.resolve("b"), FileStat(executable = true), oid)
+            val a = Entry(Path.of("a.txt"), FileStat(), oid)
+            val b = Entry(Path.of("b"), FileStat(executable = true), oid)
 
             val tree = Tree(
                 path,
@@ -199,8 +233,8 @@ class TreeTest {
             val path = Path.of(".")
 
             val oid = ObjectId(ByteArray(20) { it.toByte() })
-            val a = Entry(path.resolve("a.txt"), FileStat(), oid)
-            val b = Entry(path.resolve("b"), FileStat(directory = true), oid)
+            val a = Entry(Path.of("a.txt"), FileStat(), oid)
+            val b = Entry(Path.of("b"), FileStat(directory = true), oid)
 
             val tree = Tree(
                 path,
@@ -211,6 +245,8 @@ class TreeTest {
             )
             val parsed = Tree.parse(path, tree.data)
             assertEquals(tree, parsed)
+            assertEquals(a.oid, parsed["a.txt"]?.oid)
+            assertEquals(b.oid, parsed["b"]?.oid)
         }
     }
 
@@ -280,6 +316,44 @@ class TreeTest {
 
             assertEquals(
                 listOf("a/b/c", "a/b", "a", ""),
+                names
+            )
+        }
+
+        @Test
+        fun `build and parse nested Tree`() {
+            path.resolve("a/b/c").mkdirp()
+            path.resolve("a/b/c/d.txt").touch()
+            path.resolve("a/b/c.txt").touch()
+            path.resolve("a/b.txt").touch()
+            path.resolve("a/x.txt").touch()
+
+            val workspace = Workspace(path)
+            val database = Database(path.resolve("db"))
+
+            val entries = workspace.listFiles().map {
+                val blob = Blob(workspace.readFile(it))
+                database.store(blob)
+                Entry(it, workspace.statFile(it), blob.oid)
+            }
+
+            val tree = Tree.build(path, entries)
+            tree.traverse { database.store(it) }
+            database.store(tree)
+
+            fun traverse(oid: ObjectId, prefix: Path): List<String> {
+                return when (val obj = database.load(oid, prefix)) {
+                    is Tree -> obj.list().flatMap {
+                        listOf(it.name.toString()) + traverse(it.oid, it.name)
+                    }
+                    else -> emptyList()
+                }
+            }
+
+            val names = traverse(tree.oid, path.relativeTo(path))
+
+            assertEquals(
+                listOf("a", "a/b", "a/b/c", "a/b/c/d.txt", "a/b/c.txt", "a/b.txt", "a/x.txt"),
                 names
             )
         }

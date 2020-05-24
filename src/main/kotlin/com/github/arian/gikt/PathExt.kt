@@ -4,6 +4,7 @@ import java.io.OutputStream
 import java.nio.file.AccessMode
 import java.nio.file.FileAlreadyExistsException
 import java.nio.file.Files
+import java.nio.file.OpenOption
 import java.nio.file.Path
 import java.nio.file.attribute.FileTime
 import java.nio.file.attribute.PosixFilePermissions
@@ -41,7 +42,13 @@ fun Path.readText(): String = Files.newBufferedReader(this).readText()
 
 fun Path.write(text: String): Path = Files.writeString(this, text)
 
+fun Path.write(text: String, vararg openOption: OpenOption): Path =
+    Files.writeString(this, text, *openOption)
+
 fun Path.write(text: ByteArray): Path = Files.write(this, text)
+
+fun Path.write(text: ByteArray, vararg openOption: OpenOption): Path =
+    Files.write(this, text, *openOption)
 
 fun Path.exists(): Boolean = Files.exists(this)
 

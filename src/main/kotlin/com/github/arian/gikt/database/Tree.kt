@@ -83,9 +83,14 @@ class Tree(
             .sortedBy { it.name }
             .map { it.name.relativeTo(name).toString() }
 
-    operator fun get(key: String): TreeEntry? = entries[name.resolve(key).relativeTo(name).toString()]
+    operator fun get(key: String): TreeEntry? =
+        entries[name.resolve(key).relativeTo(name).toString()]
 
-    fun getTree(key: String): Tree? = entries[name.resolve(key).relativeTo(name).toString()] as? Tree
+    operator fun get(name: Path): TreeEntry? =
+        entries[name.toString()]
+
+    fun getTree(key: String): Tree? =
+        entries[name.resolve(key).relativeTo(name).toString()] as? Tree
 
     companion object {
         fun build(path: Path, paths: List<Entry>): Tree {
@@ -95,7 +100,7 @@ class Tree(
             }
         }
 
-        fun parse(root: Path, bytes: ByteArray): Tree {
+        fun parse(prefix: Path, bytes: ByteArray): Tree {
             val entries = mutableMapOf<String, TreeEntry>()
 
             var pos = 0
@@ -112,13 +117,13 @@ class Tree(
                 pos += 20
 
                 entries[name] = ParsedTreeEntry(
-                    name = root.resolve(name),
+                    name = prefix.resolve(name),
                     mode = mode,
                     oid = ObjectId(oid)
                 )
             } while (pos < bytes.size)
 
-            return Tree(root, entries.toMap())
+            return Tree(prefix, entries.toMap())
         }
     }
 

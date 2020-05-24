@@ -73,6 +73,11 @@ class CommandHelper : Closeable {
             }
         }
 
+    fun resetIndex() {
+        delete(".git/index")
+        cmd("add", ".")
+    }
+
     fun init() {
         cmd("init")
     }

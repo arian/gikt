@@ -7,6 +7,7 @@ import com.github.arian.gikt.database.Entry as DatabaseEntry
 import com.github.arian.gikt.database.GiktObject
 import com.github.arian.gikt.database.ObjectId
 import com.github.arian.gikt.database.Tree
+import com.github.arian.gikt.database.TreeDiffMap
 import com.github.arian.gikt.index.Index
 import com.github.arian.gikt.relativeTo
 import java.io.IOException
@@ -35,12 +36,15 @@ class Repository(private val rootPath: Path) {
 
     fun loadObject(oid: ObjectId): GiktObject =
         try {
-            database.load(rootPath, oid)
+            database.load(oid, prefix = rootPath)
         } catch (e: IllegalStateException) {
             throw BadObject(e, "bad object ${oid.hex}")
         } catch (e: IOException) {
             throw BadObject(e, "bad object ${oid.hex}")
         }
+
+    fun migration(treeDiff: TreeDiffMap): Migration =
+        Migration(this, treeDiff)
 
     class BadObject(e: Exception, msg: String) : Exception(msg, e)
 }

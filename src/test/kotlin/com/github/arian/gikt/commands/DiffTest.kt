@@ -138,8 +138,7 @@ class DiffTest {
         @Test
         fun `staged deleted`() {
             cmd.delete("1.txt")
-            cmd.delete(".git/index")
-            cmd.cmd("add", ".")
+            cmd.resetIndex()
 
             assertDiffCached(
                 """ |diff --git a/1.txt b/1.txt

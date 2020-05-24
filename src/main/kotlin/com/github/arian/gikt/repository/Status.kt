@@ -194,23 +194,21 @@ class Status(private val repository: Repository) {
     private fun loadHeadTree(): Map<String, TreeEntry> {
         val head = repository.refs.readHead() ?: return emptyMap()
         val rel = repository.relativeRoot
-        val commit = repository.database.load(rel, head) as? Commit ?: return emptyMap()
+        val commit = repository.database.load(head, rel) as? Commit ?: return emptyMap()
         return readTree(commit.tree, rel)
     }
 
     private fun readTree(oid: ObjectId, prefix: Path): Map<String, TreeEntry> =
-        when (val tree = repository.database.load(prefix, oid)) {
-            is Tree -> {
-                tree
-                    .list()
-                    .map { entry ->
-                        when {
-                            entry.isTree() -> readTree(entry.oid, entry.name)
-                            else -> mapOf(entry.name.toString() to entry)
-                        }
+        when (val tree = repository.database.load(oid, prefix)) {
+            is Tree -> tree
+                .list()
+                .map { entry ->
+                    when {
+                        entry.isTree() -> readTree(entry.oid, entry.name)
+                        else -> mapOf(entry.name.toString() to entry)
                     }
-                    .fold(emptyMap()) { a, b -> a + b }
-            }
+                }
+                .fold(emptyMap()) { a, b -> a + b }
             else -> emptyMap()
         }
 

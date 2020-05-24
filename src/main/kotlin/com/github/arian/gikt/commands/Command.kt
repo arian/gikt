@@ -75,6 +75,7 @@ object Commands {
     private val commands: Map<String, CommandFactory> = mapOf(
         "add" to cmd { Add(it) },
         "branch" to cmd { Branch(it) },
+        "checkout" to cmd { Checkout(it) },
         "commit" to cmd { Commit(it) },
         "diff" to withPager { Diff(it) },
         "help" to cmd { Help(it) },

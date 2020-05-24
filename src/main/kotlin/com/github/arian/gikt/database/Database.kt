@@ -49,10 +49,10 @@ class Database(private val pathname: Path) {
 
     private fun generateTempName() = "temp_obj_${tempChars.shuffled().joinToString("")}"
 
-    fun load(root: Path, oid: ObjectId): GiktObject {
+    fun load(oid: ObjectId, prefix: Path): GiktObject {
         val objPath = objectPath(oid)
         val content = objPath.readBytes().inflate()
-        val obj = GiktObject.parse(root, content)
+        val obj = GiktObject.parse(prefix, content)
         objects = objects + (oid to obj)
         return obj
     }
@@ -73,5 +73,9 @@ class Database(private val pathname: Path) {
         } catch (e: IOException) {
             emptyList()
         }
+    }
+
+    fun treeDiff(a: ObjectId, b: ObjectId): TreeDiffMap {
+        return TreeDiff(pathname.fileSystem, this).compareOids(a, b)
     }
 }

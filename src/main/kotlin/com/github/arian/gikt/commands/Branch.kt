@@ -10,14 +10,13 @@ class Branch(ctx: CommandContext) : AbstractCommand(ctx) {
             null -> listBranches()
             else -> createBranch(first, ctx.args.getOrNull(1))
         }
+    }
 
+    private fun listBranches(): Nothing {
         exitProcess(0)
     }
 
-    private fun listBranches() {
-    }
-
-    private fun createBranch(branchName: String, startPoint: String?) {
+    private fun createBranch(branchName: String, startPoint: String?): Nothing {
         try {
             val startOid = startPoint
                 ?.let { Revision(repository, it).resolve() }
@@ -25,6 +24,8 @@ class Branch(ctx: CommandContext) : AbstractCommand(ctx) {
                 ?: throw IllegalStateException("Couldn't read HEAD")
 
             this.repository.refs.createBranch(branchName, startOid)
+
+            exitProcess(0)
         } catch (e: Revision.InvalidObject) {
             e.errors.forEach { hint ->
                 ctx.stderr.println("error: ${hint.message}")

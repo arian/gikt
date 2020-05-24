@@ -235,8 +235,7 @@ class StatusTest {
         @Test
         fun `reports deleted files`() {
             cmd.delete("1.txt")
-            cmd.delete(".git/index")
-            cmd.cmd("add", ".")
+            cmd.resetIndex()
 
             assertStatus(
                 """
@@ -248,8 +247,7 @@ class StatusTest {
         @Test
         fun `reports deleted files inside directories`() {
             cmd.delete("a")
-            cmd.delete(".git/index")
-            cmd.cmd("add", ".")
+            cmd.resetIndex()
 
             assertStatus(
                 """

@@ -1,8 +1,16 @@
 package com.github.arian.gikt
 
+import com.github.arian.gikt.database.TreeEntry
+import com.github.arian.gikt.repository.Migration
+import com.github.arian.gikt.repository.MigrationPlan
+import java.io.IOException
 import java.nio.file.AccessDeniedException
 import java.nio.file.AccessMode
+import java.nio.file.DirectoryNotEmptyException
+import java.nio.file.NoSuchFileException
+import java.nio.file.NotDirectoryException
 import java.nio.file.Path
+import java.nio.file.StandardOpenOption
 
 class Workspace(private val rootPath: Path) {
 
@@ -75,6 +83,71 @@ class Workspace(private val rootPath: Path) {
 
     private fun absolutePath(it: Path): Path = rootPath.resolve(it)
     private fun absolutePath(it: String): Path = rootPath.resolve(it)
+
+    fun applyMigration(migration: Migration, plan: MigrationPlan) {
+        plan.delete.forEach { absolutePath(it.name).delete() }
+        plan.rmdirs.sorted().reversed().forEach {
+            removeDirectory(it)
+        }
+
+        plan.mkdirs.sorted().forEach {
+            makeDirectory(it)
+        }
+
+        applyChangeList(migration, plan.update)
+        applyChangeList(migration, plan.create)
+    }
+
+    private fun removeDirectory(dirname: Path) {
+        try {
+            absolutePath(dirname).delete()
+        } catch (e: IOException) {
+            when (e) {
+                is DirectoryNotEmptyException -> {}
+                is NotDirectoryException -> {}
+                is NoSuchFileException -> {}
+                else -> throw e
+            }
+        }
+    }
+
+    private fun makeDirectory(dirname: Path) {
+        val path = absolutePath(dirname)
+        val stat = try {
+            statFile(dirname)
+        } catch (e: NoSuchFileException) {
+            null
+        }
+
+        if (stat?.file == true) {
+            path.delete()
+        }
+        if (stat?.directory != true) {
+            path.mkdirp()
+        }
+    }
+
+    private fun applyChangeList(migration: Migration, plan: List<TreeEntry>) {
+        plan.forEach { entry ->
+            val path = absolutePath(entry.name)
+
+            try {
+                path.deleteRecursively()
+            } catch (e: NoSuchFileException) {}
+
+            path.write(
+                migration.blobData(entry.oid),
+                StandardOpenOption.WRITE,
+                StandardOpenOption.CREATE_NEW
+            )
+
+            when (entry.mode) {
+                Mode.REGULAR -> path.makeUnExecutable()
+                Mode.EXECUTABLE -> path.makeExecutable()
+                Mode.TREE -> throw IllegalStateException("shouldn't be a tree")
+            }
+        }
+    }
 
     class MissingFile(msg: String) : Exception(msg)
     class NoPermission(msg: String) : Exception(msg)

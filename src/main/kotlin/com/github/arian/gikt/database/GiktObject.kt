@@ -20,7 +20,7 @@ abstract class GiktObject {
         oid.hashCode()
 
     companion object {
-        fun parse(root: Path, bytes: ByteArray): GiktObject {
+        fun parse(prefix: Path, bytes: ByteArray): GiktObject {
             val typeBytes = bytes
                 .takeWhile { it != ' '.toByte() }
                 .toByteArray()
@@ -37,7 +37,7 @@ abstract class GiktObject {
 
             return when (type) {
                 "blob" -> Blob.parse(content)
-                "tree" -> Tree.parse(root, content)
+                "tree" -> Tree.parse(prefix, content)
                 "commit" -> Commit.parse(content)
                 else -> throw IllegalStateException("unknown object type")
             }
