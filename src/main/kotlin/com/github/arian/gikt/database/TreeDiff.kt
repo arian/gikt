@@ -4,7 +4,23 @@ import com.github.arian.gikt.relativeTo
 import java.nio.file.FileSystem
 import java.nio.file.Path
 
-private typealias TreeDiffMapValue = Pair<TreeEntry?, TreeEntry?>
+sealed class TreeDiffMapValue {
+
+    abstract fun toHexPair(): Pair<ObjectId?, ObjectId?>
+
+    data class Addition(val new: TreeEntry) : TreeDiffMapValue() {
+        override fun toHexPair(): Pair<ObjectId?, ObjectId?> = null to new.oid
+    }
+
+    data class Change(val old: TreeEntry, val new: TreeEntry) : TreeDiffMapValue() {
+        override fun toHexPair(): Pair<ObjectId?, ObjectId?> = old.oid to new.oid
+    }
+
+    data class Deletion(val old: TreeEntry) : TreeDiffMapValue() {
+        override fun toHexPair(): Pair<ObjectId?, ObjectId?> = old.oid to null
+    }
+}
+
 typealias TreeDiffMap = Map<Path, TreeDiffMapValue>
 
 class TreeDiff(private val fs: FileSystem, private val database: Database) {
@@ -51,7 +67,11 @@ class TreeDiff(private val fs: FileSystem, private val database: Database) {
         val a = entry.blobOid
         val b = other.blobOid
         return if (a != null || b != null) {
-            mapOf(entry.name to (entry to other))
+            if (other == null) {
+                mapOf(entry.name to TreeDiffMapValue.Deletion(entry))
+            } else {
+                mapOf(entry.name to TreeDiffMapValue.Change(entry, other))
+            }
         } else {
             emptyMap()
         }
@@ -59,25 +79,23 @@ class TreeDiff(private val fs: FileSystem, private val database: Database) {
 
     private fun detectDeletions(a: TreeGetter, b: TreeGetter): TreeDiffMap {
         return a.list()
-            .map { entry ->
+            .combineMaps { entry ->
                 when (val other = b[entry.name]) {
                     entry -> emptyMap()
                     else -> treeDiffs(entry, other) + blobDiffs(entry, other)
                 }
             }
-            .combineMaps()
     }
 
     private fun detectAdditions(a: TreeGetter, b: TreeGetter): TreeDiffMap {
         return b.list()
-            .map { entry ->
+            .combineMaps { entry ->
                 when {
                     a.contains(entry.name) -> emptyMap()
                     entry.isTree() -> compareOids(null, entry.oid, entry.name)
-                    else -> mapOf(entry.name to Pair(null, entry))
+                    else -> mapOf(entry.name to TreeDiffMapValue.Addition(entry))
                 }
             }
-            .combineMaps()
     }
 
     private val TreeEntry?.treeOid: ObjectId?
@@ -86,6 +104,6 @@ class TreeDiff(private val fs: FileSystem, private val database: Database) {
     private val TreeEntry?.blobOid: ObjectId?
         get() = this?.takeUnless { it.isTree() }?.oid
 
-    private fun <K, V> List<Map<K, V>>.combineMaps(): Map<K, V> =
-        fold(emptyMap()) { acc, map -> acc + map }
+    private fun <E, K, V> List<E>.combineMaps(block: (E) -> Map<K, V>): Map<K, V> =
+        fold(emptyMap()) { acc, map -> acc + block(map) }
 }

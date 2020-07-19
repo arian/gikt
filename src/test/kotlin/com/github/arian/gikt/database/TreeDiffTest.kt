@@ -117,6 +117,7 @@ internal class TreeDiffTest(private val fileSystemProvider: FileSystemExtension.
 
 private fun TreeDiffMap.toStrings() =
     mapKeys { (k, _) -> k.toString() }
-        .mapValues { (_, pair) ->
-            Pair(pair.first?.oid?.hex, pair.second?.oid?.hex)
+        .mapValues { (_, diff) ->
+            val (from, to) = diff.toHexPair()
+            from?.hex to to?.hex
         }

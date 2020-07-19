@@ -2,6 +2,7 @@ package com.github.arian.gikt.repository
 
 import com.github.arian.gikt.database.ObjectId
 import com.github.arian.gikt.database.TreeDiffMap
+import com.github.arian.gikt.database.TreeDiffMapValue
 import com.github.arian.gikt.database.TreeEntry
 import com.github.arian.gikt.parentPaths
 import java.nio.file.Path
@@ -17,33 +18,29 @@ class Migration(private val repository: Repository, private val treeDiff: TreeDi
 
     private fun planChanges(): MigrationPlan {
         return treeDiff
-            .entries
-            .fold(MigrationPlan(), { plan, (_, diff) ->
-                val (oldItem, newItem) = diff
-                when {
-                    oldItem == null && newItem != null -> {
-                        plan.copy(
-                            mkdirs = plan.mkdirs + newItem.name.parentPaths(),
-                            create = plan.create + newItem
-                        )
-                    }
-                    newItem == null && oldItem != null -> {
-                        plan.copy(
-                            rmdirs = plan.rmdirs + oldItem.name.parentPaths(),
-                            delete = plan.delete + oldItem
-                        )
-                    }
-                    newItem != null -> {
-                        plan.copy(
-                            mkdirs = plan.mkdirs + newItem.name.parentPaths(),
-                            update = plan.update + newItem
-                        )
-                    }
-                    else -> plan
-                }
-            })
+            .values
+            .fold(MigrationPlan()) { plan, diff -> planEntry(plan, diff) }
             .let { it.copy(rmdirs = it.rmdirs - it.mkdirs) }
     }
+
+    private fun planEntry(plan: MigrationPlan, diff: TreeDiffMapValue): MigrationPlan =
+        when (diff) {
+            is TreeDiffMapValue.Addition ->
+                plan.copy(
+                    mkdirs = plan.mkdirs + diff.new.name.parentPaths(),
+                    create = plan.create + diff.new
+                )
+            is TreeDiffMapValue.Deletion ->
+                plan.copy(
+                    rmdirs = plan.rmdirs + diff.old.name.parentPaths(),
+                    delete = plan.delete + diff.old
+                )
+            is TreeDiffMapValue.Change ->
+                plan.copy(
+                    mkdirs = plan.mkdirs + diff.new.name.parentPaths(),
+                    update = plan.update + diff.new
+                )
+        }
 }
 
 data class MigrationPlan(
