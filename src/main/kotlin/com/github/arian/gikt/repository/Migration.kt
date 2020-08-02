@@ -7,13 +7,14 @@ import com.github.arian.gikt.database.TreeDiffMapValue
 import com.github.arian.gikt.database.TreeEntry
 import com.github.arian.gikt.index.Index
 import com.github.arian.gikt.parentPaths
+import com.github.arian.gikt.repository.MigrationPlan.Conflicts
 import java.nio.file.Path
 
 class Migration(private val repository: Repository, private val treeDiff: TreeDiffMap) {
 
     private val inspector = Inspector(repository)
 
-    fun applyChanges(index: Index.Updater) {
+    fun applyChanges(index: Index.Updater): MigrationResult {
         val plan = planChanges(index)
 
         val errors = collectErrors(plan.conflicts)
@@ -21,41 +22,13 @@ class Migration(private val repository: Repository, private val treeDiff: TreeDi
         if (errors.isEmpty()) {
             updateWorkspace(plan)
             updateIndex(plan, index)
-        } else {
-            throw Conflict(errors)
         }
+
+        return MigrationResult(errors)
     }
 
-    private fun collectErrors(conflicts: Conflicts): List<String> {
-        fun error(header: String, footer: String, paths: Collection<Path>): List<String> =
-            if (paths.isEmpty()) {
-                emptyList()
-            } else {
-                val lines = paths.toSortedSet().map { "\t$it" }
-                listOf((listOf(header) + lines + footer).joinToString(separator = "\n"))
-            }
-
-        return error(
-            paths = conflicts.staleFile,
-            header = "Your local changes to the following files would be overwritten by checkout:",
-            footer = "Please commit your changes or stash them before you switch branches."
-        ) +
-            error(
-                paths = conflicts.staleDirectory,
-                header = "Updating the following directories would lose untracked files in them:",
-                footer = ""
-            ) +
-            error(
-                paths = conflicts.untrackedOverwritten,
-                header = "The following untracked working tree files would be overwritten by checkout:",
-                footer = "Please move or remove them before you switch branches."
-            ) +
-            error(
-                paths = conflicts.untrackedRemoved,
-                header = "The following untracked working tree files would be removed by checkout:",
-                footer = "Please move or remove them before you switch branches."
-            )
-    }
+    fun blobData(objectId: ObjectId) =
+        repository.loadObject(objectId).data
 
     private fun updateWorkspace(plan: MigrationPlan) {
         repository.workspace.applyMigration(this, plan)
@@ -63,18 +36,11 @@ class Migration(private val repository: Repository, private val treeDiff: TreeDi
 
     private fun updateIndex(plan: MigrationPlan, index: Index.Updater) {
         plan.delete.forEach { index.remove(it.name) }
-
-        fun add(entry: TreeEntry) {
+        (plan.create + plan.update).forEach { entry ->
             val stat = repository.workspace.statFile(entry.name)
             index.add(entry.name, entry.oid, stat)
         }
-
-        plan.create.forEach { add(it) }
-        plan.update.forEach { add(it) }
     }
-
-    fun blobData(objectId: ObjectId) =
-        repository.loadObject(objectId).data
 
     private fun planChanges(index: Index.Loaded): MigrationPlan {
         return treeDiff
@@ -109,8 +75,14 @@ class Migration(private val repository: Repository, private val treeDiff: TreeDi
         val stat = repository.workspace.statFileOrNull(diff.path)
 
         // some deeper file will be added, but there's an untracked file that would be a parent dir
-        if (stat == null && untrackedParent(index, diff.path)) {
-            return Conflicts(untrackedOverwritten = listOf(diff.path))
+        if (stat == null) {
+            val untrackedParent = diff.path.parentPaths().any {
+                val parentStat = repository.workspace.statFileOrNull(it)
+                parentStat?.file == true && inspector.trackableFile(index, it, parentStat)
+            }
+            if (untrackedParent) {
+                return Conflicts(untrackedOverwritten = listOf(diff.path))
+            }
         }
 
         return checkWorkspaceConflicts(index, diff.path, stat)
@@ -139,35 +111,50 @@ class Migration(private val repository: Repository, private val treeDiff: TreeDi
         return when {
             stat == null -> Conflicts.EMPTY
             // same filename already exists locally
-            stat.file -> conflictingWorkspaceFile(path, stat) ?: Conflicts.EMPTY
+            stat.file -> {
+                val entry = repository.index.load()[path.toString()]
+                when (inspector.compareIndexToWorkspace(entry, stat)) {
+                    is Inspector.WorkspaceChange.Untracked -> Conflicts(untrackedOverwritten = listOf(path))
+                    is Inspector.WorkspaceChange.Modified -> Conflicts(staleFile = listOf(path))
+                    null -> Conflicts.EMPTY
+                }
+            }
             // same path exists locally as a directory
             inspector.trackableFile(index, path, stat) -> Conflicts(staleDirectory = listOf(path))
             else -> Conflicts.EMPTY
         }
     }
 
-    private fun conflictingWorkspaceFile(path: Path, stat: FileStat): Conflicts? {
-        val entry = repository.index.load()[path.toString()]
-
-        return when (inspector.compareIndexToWorkspace(entry, stat)) {
-            is Inspector.WorkspaceChange.Untracked ->
-                Conflicts(untrackedOverwritten = listOf(path))
-            is Inspector.WorkspaceChange.Modified ->
-                Conflicts(staleFile = listOf(path))
-            null ->
-                null
-        }
-    }
-
-    private fun untrackedParent(index: Index.Loaded, path: Path) =
-        path.parentPaths().any {
-            val stat = repository.workspace.statFileOrNull(it)
-            if (stat != null && stat.file) {
-                inspector.trackableFile(index, it, stat)
+    private fun collectErrors(conflicts: Conflicts): List<String> {
+        fun error(header: String, footer: String, paths: Collection<Path>): List<String> =
+            if (paths.isEmpty()) {
+                emptyList()
             } else {
-                false
+                val lines = paths.toSortedSet().map { "\t$it" }
+                listOf((listOf(header) + lines + footer).joinToString(separator = "\n"))
             }
-        }
+
+        return error(
+            paths = conflicts.staleFile,
+            header = "Your local changes to the following files would be overwritten by checkout:",
+            footer = "Please commit your changes or stash them before you switch branches."
+        ) +
+            error(
+                paths = conflicts.staleDirectory,
+                header = "Updating the following directories would lose untracked files in them:",
+                footer = ""
+            ) +
+            error(
+                paths = conflicts.untrackedOverwritten,
+                header = "The following untracked working tree files would be overwritten by checkout:",
+                footer = "Please move or remove them before you switch branches."
+            ) +
+            error(
+                paths = conflicts.untrackedRemoved,
+                header = "The following untracked working tree files would be removed by checkout:",
+                footer = "Please move or remove them before you switch branches."
+            )
+    }
 }
 
 data class MigrationPlan(
@@ -178,25 +165,25 @@ data class MigrationPlan(
     val update: List<TreeEntry> = emptyList(),
     val conflicts: Conflicts = Conflicts.EMPTY,
     val errors: List<String> = emptyList()
-)
-
-data class Conflicts(
-    val staleFile: List<Path> = emptyList(),
-    val staleDirectory: List<Path> = emptyList(),
-    val untrackedOverwritten: List<Path> = emptyList(),
-    // TODO when do you get this?
-    val untrackedRemoved: List<Path> = emptyList()
 ) {
-    operator fun plus(it: Conflicts) = copy(
-        staleFile = staleFile + it.staleFile,
-        staleDirectory = staleDirectory + it.staleDirectory,
-        untrackedOverwritten = untrackedOverwritten + it.untrackedOverwritten,
-        untrackedRemoved = untrackedRemoved + it.untrackedRemoved
-    )
 
-    companion object {
-        internal val EMPTY = Conflicts()
+    data class Conflicts(
+        val staleFile: List<Path> = emptyList(),
+        val staleDirectory: List<Path> = emptyList(),
+        val untrackedOverwritten: List<Path> = emptyList(),
+        // TODO when do you get this?
+        val untrackedRemoved: List<Path> = emptyList()
+    ) {
+        operator fun plus(it: Conflicts) = copy(
+            staleFile = staleFile + it.staleFile,
+            staleDirectory = staleDirectory + it.staleDirectory,
+            untrackedOverwritten = untrackedOverwritten + it.untrackedOverwritten,
+            untrackedRemoved = untrackedRemoved + it.untrackedRemoved
+        )
+
+        companion object {
+            internal val EMPTY = Conflicts()
+        }
     }
 }
-
-class Conflict(val errors: List<String>) : Exception()
+class MigrationResult(val errors: List<String>)

@@ -2,7 +2,6 @@ package com.github.arian.gikt.commands
 
 import com.github.arian.gikt.Revision
 import com.github.arian.gikt.database.TreeDiffMap
-import com.github.arian.gikt.repository.Conflict
 
 class Checkout(ctx: CommandContext) : AbstractCommand(ctx) {
     override fun run() {
@@ -21,17 +20,16 @@ class Checkout(ctx: CommandContext) : AbstractCommand(ctx) {
 
                 val treeDiff: TreeDiffMap = repository.database.treeDiff(currentOid, revision)
                 val migration = repository.migration(treeDiff)
+                val result = migration.applyChanges(this)
 
-                try {
-                    migration.applyChanges(this)
+                if (result.errors.isEmpty()) {
                     writeUpdates()
                     repository.refs.updateHead(revision)
-
                     return@loadForUpdate 0
-                } catch (e: Conflict) {
+                } else {
                     rollback()
 
-                    e.errors.forEach { ctx.stderr.println("error: $it") }
+                    result.errors.forEach { ctx.stderr.println("error: $it") }
                     ctx.stderr.println("Aborting")
 
                     return@loadForUpdate 1
