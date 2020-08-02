@@ -2,6 +2,7 @@ package com.github.arian.gikt.commands
 
 import com.github.arian.gikt.Revision
 import com.github.arian.gikt.database.TreeDiffMap
+import com.github.arian.gikt.repository.Conflict
 
 class Checkout(ctx: CommandContext) : AbstractCommand(ctx) {
     override fun run() {
@@ -16,17 +17,28 @@ class Checkout(ctx: CommandContext) : AbstractCommand(ctx) {
             val currentOid = repository.refs.readHead()
                 ?: throw UnbornHead("You are on a branch yet to be born")
 
-            repository.index.loadForUpdate {
+            val code = repository.index.loadForUpdate {
 
                 val treeDiff: TreeDiffMap = repository.database.treeDiff(currentOid, revision)
                 val migration = repository.migration(treeDiff)
-                migration.applyChanges(this)
 
-                writeUpdates()
-                repository.refs.updateHead(revision)
+                try {
+                    migration.applyChanges(this)
+                    writeUpdates()
+                    repository.refs.updateHead(revision)
+
+                    return@loadForUpdate 0
+                } catch (e: Conflict) {
+                    rollback()
+
+                    e.errors.forEach { ctx.stderr.println("error: $it") }
+                    ctx.stderr.println("Aborting")
+
+                    return@loadForUpdate 1
+                }
             }
 
-            exitProcess(0)
+            exitProcess(code)
         } catch (e: Revision.InvalidObject) {
             handleInvalidObject(e)
         } catch (e: UnbornHead) {

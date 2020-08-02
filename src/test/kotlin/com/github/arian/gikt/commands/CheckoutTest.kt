@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test
 internal class CheckoutTest {
 
     private val cmd = CommandHelper()
+    private val TAB = "\t"
 
     @BeforeEach
     fun before() {
@@ -180,5 +181,107 @@ internal class CheckoutTest {
         val status = cmd.cmd("status", "--porcelain")
         assertEquals(0, status.status)
         assertEquals("", status.stdout)
+    }
+
+    @Test
+    fun `checkout commit conflicting untracked file`() {
+        cmd.writeFile("a.txt", "a")
+        val head = commitFile("b.txt", "b")
+
+        cmd.delete("b.txt")
+        cmd.resetIndex()
+        cmd.commit("delete b.txt")
+
+        cmd.writeFile("b.txt", "bb")
+
+        val execution = cmd.cmd("checkout", head.short)
+
+        assertEquals(1, execution.status)
+        assertEquals("""
+            error: The following untracked working tree files would be overwritten by checkout:
+            ${TAB}b.txt
+            Please move or remove them before you switch branches.
+            Aborting
+        """.trimIndent(), execution.stderr.trim())
+    }
+
+    @Test
+    fun `checkout commit conflicting unstaged stale file`() {
+        val head = commitFile("a.txt", "a")
+        commitFile("a.txt", "ab")
+        cmd.writeFile("a.txt", "abc")
+
+        val execution = cmd.cmd("checkout", head.short)
+
+        assertEquals(1, execution.status)
+        assertEquals("""
+            error: Your local changes to the following files would be overwritten by checkout:
+            ${TAB}a.txt
+            Please commit your changes or stash them before you switch branches.
+            Aborting
+        """.trimIndent(), execution.stderr.trim())
+    }
+
+    @Test
+    fun `checkout commit conflicting staged stale file`() {
+        val head = commitFile("a.txt", "a")
+        commitFile("a.txt", "ab")
+        cmd.writeFile("a.txt", "abc")
+        cmd.cmd("add", "a.txt")
+
+        val execution = cmd.cmd("checkout", head.short)
+
+        assertEquals(1, execution.status)
+        assertEquals("""
+            error: Your local changes to the following files would be overwritten by checkout:
+            ${TAB}a.txt
+            Please commit your changes or stash them before you switch branches.
+            Aborting
+        """.trimIndent(), execution.stderr.trim())
+    }
+
+    @Test
+    fun `checkout commit conflicting untracked file in directory`() {
+        val head = commitFile("a", "a")
+        commitFile("a", "ab")
+        cmd.delete("a")
+        cmd.writeFile("a/b", "b")
+
+        val execution = cmd.cmd("checkout", head.short)
+
+        assertEquals(1, execution.status)
+        assertEquals("""
+            error: Updating the following directories would lose untracked files in them:
+            ${TAB}a
+
+            Aborting
+        """.trimIndent(), execution.stderr.trim())
+    }
+
+    @Test
+    fun `checkout commit conflicting multiple files`() {
+        cmd.writeFile("a.txt", "1")
+        cmd.writeFile("b.txt", "1")
+        val head = commitFile("c.txt", "1")
+
+        cmd.writeFile("a.txt", "2")
+        cmd.writeFile("b.txt", "2")
+        commitFile("c.txt", "2")
+
+        cmd.writeFile("a.txt", "3")
+        cmd.writeFile("b.txt", "3")
+        cmd.writeFile("c.txt", "3")
+
+        val execution = cmd.cmd("checkout", head.short)
+
+        assertEquals(1, execution.status)
+        assertEquals("""
+            error: Your local changes to the following files would be overwritten by checkout:
+            ${TAB}a.txt
+            ${TAB}b.txt
+            ${TAB}c.txt
+            Please commit your changes or stash them before you switch branches.
+            Aborting
+        """.trimIndent(), execution.stderr.trim())
     }
 }

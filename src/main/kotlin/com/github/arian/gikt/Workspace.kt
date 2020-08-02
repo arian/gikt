@@ -75,6 +75,12 @@ class Workspace(private val rootPath: Path) {
 
     fun statFile(it: Path): FileStat = statFileChecked(absolutePath(it))
 
+    fun statFileOrNull(it: Path): FileStat? = try {
+        absolutePath(it).stat()
+    } catch (e: IOException) {
+        null
+    }
+
     private fun statFileChecked(it: Path): FileStat = try {
         it.checkAccess(AccessMode.READ).stat()
     } catch (e: AccessDeniedException) {

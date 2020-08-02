@@ -1,8 +1,6 @@
 package com.github.arian.gikt.repository
 
 import com.github.arian.gikt.FileStat
-import com.github.arian.gikt.Mode
-import com.github.arian.gikt.database.Blob
 import com.github.arian.gikt.database.Commit
 import com.github.arian.gikt.database.ObjectId
 import com.github.arian.gikt.database.Tree
@@ -13,6 +11,8 @@ import java.nio.file.Path
 import java.util.SortedMap
 
 class Status(private val repository: Repository) {
+
+    private val inspector = Inspector(repository)
 
     enum class ChangeType(val short: String) {
         MODIFIED("M"),
@@ -94,7 +94,7 @@ class Status(private val repository: Repository) {
     fun scan(index: Index.Loaded): Scan {
         val workspaceScan = scanWorkspace(index)
         val headTree = loadHeadTree()
-        return checkIndexEntries(repository, index, workspaceScan, headTree)
+        return checkIndexEntries(index, workspaceScan, headTree)
     }
 
     private fun scanWorkspace(index: Index.Loaded, prefix: Path? = null): Scan {
@@ -115,7 +115,7 @@ class Status(private val repository: Repository) {
                     false -> Scan(stats = mapOf("$path" to stat))
                 }
             }
-            trackableFile(index, path, stat) -> {
+            inspector.trackableFile(index, path, stat) -> {
                 val name = when (stat.directory) {
                     true -> "$path/"
                     false -> "$path"
@@ -125,26 +125,13 @@ class Status(private val repository: Repository) {
             else -> Scan()
         }
 
-    private fun trackableFile(index: Index.Loaded, path: Path, stat: FileStat): Boolean {
-        if (stat.file) {
-            return !index.tracked(path)
-        }
-
-        val items = repository.workspace.listDir(path)
-        val files = items.filter { (_, stat) -> stat.file }
-        val dirs = items.filter { (_, stat) -> stat.directory }
-
-        return (files + dirs).any { (itemPath, itemStat) -> trackableFile(index, itemPath, itemStat) }
-    }
-
     private fun checkIndexEntries(
-        repository: Repository,
         index: Index.Loaded,
         scan: Scan,
         headTree: Map<String, TreeEntry>
     ): Scan {
         val workspaceChanges = index.toList()
-            .mapNotNull { checkIndexEntryAgainstWorkspace(repository, index, scan, it) }
+            .mapNotNull { checkIndexEntryAgainstWorkspace(index, scan, it) }
 
         val headChanges = index.toList()
             .mapNotNull { checkIndexEntryAgainstHeadTree(headTree, it) }
@@ -163,31 +150,23 @@ class Status(private val repository: Repository) {
     }
 
     private fun checkIndexEntryAgainstWorkspace(
-        repository: Repository,
         index: Index.Loaded,
         scan: Scan,
         entry: Entry
     ): Changes? {
         val stat = scan.stats[entry.key] ?: return Changes.workspace(WorkspaceChange.Deleted(entry))
 
-        if (!entry.statMatch(stat)) {
-            return Changes.workspace(WorkspaceChange.Modified(entry))
-        }
-
-        if (entry.timesMatch(stat)) {
-            return null
-        }
-
-        val data = repository.workspace.readFile(entry.key)
-        val blob = Blob(data)
-
-        return if (blob.oid == entry.oid) {
-            if (index is Index.Updater) {
-                index.updateEntryStat(entry.key, stat)
+        return when (inspector.compareIndexToWorkspace(entry, stat)) {
+            is Inspector.WorkspaceChange.Modified ->
+                Changes.workspace(WorkspaceChange.Modified(entry))
+            is Inspector.WorkspaceChange.Untracked ->
+                null
+            null -> {
+                if (index is Index.Updater) {
+                    index.updateEntryStat(entry.key, stat)
+                }
+                null
             }
-            null
-        } else {
-            return Changes.workspace(WorkspaceChange.Modified(entry))
         }
     }
 
@@ -214,12 +193,12 @@ class Status(private val repository: Repository) {
 
     private fun checkIndexEntryAgainstHeadTree(tree: Map<String, TreeEntry>, entry: Entry): Changes? {
         val treeEntry = tree[entry.key]
-        return when {
-            treeEntry == null ->
+        return when (val status = inspector.compareTreeToIndex(treeEntry, entry)) {
+            is Inspector.IndexChange.Added ->
                 Changes.index(IndexChange.Added(entry))
-            Mode.fromStat(entry.stat) != treeEntry.mode || entry.oid != treeEntry.oid ->
-                Changes.index(IndexChange.Modified(entry, treeEntry))
-            else ->
+            is Inspector.IndexChange.Modified ->
+                Changes.index(IndexChange.Modified(entry, status.treeEntry))
+            null ->
                 null
         }
     }

@@ -7,17 +7,21 @@ import java.nio.file.Path
 sealed class TreeDiffMapValue {
 
     abstract fun toHexPair(): Pair<ObjectId?, ObjectId?>
+    abstract val path: Path
 
     data class Addition(val new: TreeEntry) : TreeDiffMapValue() {
         override fun toHexPair(): Pair<ObjectId?, ObjectId?> = null to new.oid
+        override val path: Path = new.name
     }
 
     data class Change(val old: TreeEntry, val new: TreeEntry) : TreeDiffMapValue() {
         override fun toHexPair(): Pair<ObjectId?, ObjectId?> = old.oid to new.oid
+        override val path: Path = new.name
     }
 
     data class Deletion(val old: TreeEntry) : TreeDiffMapValue() {
         override fun toHexPair(): Pair<ObjectId?, ObjectId?> = old.oid to null
+        override val path: Path = old.name
     }
 }
 
