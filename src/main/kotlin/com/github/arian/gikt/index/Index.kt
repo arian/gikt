@@ -240,6 +240,7 @@ class Index(private val pathname: Path) {
 
     class Updater internal constructor(private val index: Index, private val lock: Lockfile.Ref) : Loaded(index) {
         fun add(path: Path, oid: ObjectId, stat: FileStat) = index.add(path, oid, stat)
+        fun remove(path: Path) = index.remove(path)
         fun updateEntryStat(key: String, stat: FileStat) = index.updateEntryStat(key, stat)
         fun writeUpdates() = index.writeUpdates(lock)
         fun rollback() = lock.rollback()
@@ -344,5 +345,12 @@ class Index(private val pathname: Path) {
                 }
             }
         }
+    }
+
+    private fun remove(path: Path) {
+        val name = path.toString()
+        parents[name]?.forEach { child -> removeEntry(child) }
+        removeEntry(name)
+        changed = true
     }
 }

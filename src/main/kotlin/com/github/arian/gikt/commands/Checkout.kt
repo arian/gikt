@@ -16,9 +16,15 @@ class Checkout(ctx: CommandContext) : AbstractCommand(ctx) {
             val currentOid = repository.refs.readHead()
                 ?: throw UnbornHead("You are on a branch yet to be born")
 
-            val treeDiff: TreeDiffMap = repository.database.treeDiff(currentOid, revision)
-            val migration = repository.migration(treeDiff)
-            migration.applyChanges()
+            repository.index.loadForUpdate {
+
+                val treeDiff: TreeDiffMap = repository.database.treeDiff(currentOid, revision)
+                val migration = repository.migration(treeDiff)
+                migration.applyChanges(this)
+
+                writeUpdates()
+                repository.refs.updateHead(revision)
+            }
 
             exitProcess(0)
         } catch (e: Revision.InvalidObject) {

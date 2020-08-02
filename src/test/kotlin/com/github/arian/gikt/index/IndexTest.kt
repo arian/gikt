@@ -138,6 +138,24 @@ class IndexTest(private val fileSystemProvider: FileSystemExtension.FileSystemPr
     }
 
     @Test
+    fun `remove a file from the index`() {
+        val index = Index(workspacePath.resolve("index"))
+
+        index.loadForUpdate {
+            add(rel("alice.txt"), oid, stat)
+            add(rel("nested/bob.txt"), oid, stat)
+            writeUpdates()
+        }
+
+        index.loadForUpdate {
+            remove(rel("nested/bob.txt"))
+            writeUpdates()
+        }
+
+        assertEquals(listOf("alice.txt"), index.load().toList().map { it.key })
+    }
+
+    @Test
     fun `return false when index is locked`() {
         val index = Index(workspacePath.resolve("index"))
         workspacePath.resolve("index.lock").touch()

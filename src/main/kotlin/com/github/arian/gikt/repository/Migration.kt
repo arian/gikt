@@ -4,13 +4,31 @@ import com.github.arian.gikt.database.ObjectId
 import com.github.arian.gikt.database.TreeDiffMap
 import com.github.arian.gikt.database.TreeDiffMapValue
 import com.github.arian.gikt.database.TreeEntry
+import com.github.arian.gikt.index.Index
 import com.github.arian.gikt.parentPaths
 import java.nio.file.Path
 
 class Migration(private val repository: Repository, private val treeDiff: TreeDiffMap) {
-    fun applyChanges() {
+    fun applyChanges(index: Index.Updater) {
         val plan = planChanges()
+        updateWorkspace(plan)
+        updateIndex(plan, index)
+    }
+
+    private fun updateWorkspace(plan: MigrationPlan) {
         repository.workspace.applyMigration(this, plan)
+    }
+
+    private fun updateIndex(plan: MigrationPlan, index: Index.Updater) {
+        plan.delete.forEach { index.remove(it.name) }
+
+        fun add(entry: TreeEntry) {
+            val stat = repository.workspace.statFile(entry.name)
+            index.add(entry.name, entry.oid, stat)
+        }
+
+        plan.create.forEach { add(it) }
+        plan.update.forEach { add(it) }
     }
 
     fun blobData(objectId: ObjectId) =

@@ -158,4 +158,27 @@ internal class CheckoutTest {
         assertEquals(listOf("a/b.txt"), listWorkspaceFiles())
         assertEquals("b", cmd.readFile("a/b.txt"))
     }
+
+    @Test
+    fun `checkout should update index`() {
+        cmd.writeFile("a/b.txt", "b")
+        cmd.cmd("add", "a")
+        cmd.commit("first")
+
+        cmd.delete("a")
+        cmd.writeFile("a/b/c/d", "d")
+        cmd.resetIndex()
+        cmd.cmd("add", "a")
+        cmd.commit("replace a")
+
+        assertEquals(listOf("a/b/c/d"), listWorkspaceFiles())
+
+        val checkout = cmd.cmd("checkout", "HEAD^")
+        assertEquals(0, checkout.status)
+        assertEquals(listOf("a/b.txt"), listWorkspaceFiles())
+
+        val status = cmd.cmd("status", "--porcelain")
+        assertEquals(0, status.status)
+        assertEquals("", status.stdout)
+    }
 }
