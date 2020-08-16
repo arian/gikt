@@ -83,7 +83,7 @@ class RefsTest(private val fileSystemProvider: FileSystemExtension.FileSystemPro
     }
 
     @Test
-    fun `readOidOrSymRef commit ID oid`() {
+    fun `readHead commit ID oid`() {
         val oid = ObjectId("abcd")
         val refs = Refs(git)
         refs.updateHead(oid)
@@ -91,7 +91,7 @@ class RefsTest(private val fileSystemProvider: FileSystemExtension.FileSystemPro
     }
 
     @Test
-    fun `readOidOrSymRef symbolic ref`() {
+    fun `readHead with symbolic ref`() {
         val oid = ObjectId("abcd")
 
         val refs = Refs(git)

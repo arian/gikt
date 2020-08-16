@@ -287,4 +287,72 @@ internal class CheckoutTest {
             Aborting
         """.trimIndent(), execution.stderr.trim())
     }
+
+    @Test
+    fun `checkout from HEAD to branch with name prints the new branch name`() {
+        commitFile("a.txt", "")
+        cmd.cmd("branch", "topic")
+        commitFile("b.txt", "")
+        val execution = cmd.cmd("checkout", "topic")
+
+        assertEquals(0, execution.status)
+        assertEquals("""
+            |Previous HEAD position was 8a45122 commit
+            |Switched to branch 'topic'
+        """.trimMargin(), execution.stderr.trim())
+    }
+
+    @Test
+    fun `checkout branc to another branch with name prints only the new branch name`() {
+        commitFile("a.txt", "")
+        cmd.cmd("branch", "topic")
+        commitFile("b.txt", "")
+        cmd.cmd("branch", "bar")
+        cmd.cmd("checkout", "bar")
+        val execution = cmd.cmd("checkout", "topic")
+
+        assertEquals(0, execution.status)
+        assertEquals("""
+            |Switched to branch 'topic'
+        """.trimMargin(), execution.stderr.trim())
+    }
+
+    @Test
+    fun `checkout commit prints a detached HEAD message`() {
+        val oid = commitFile("a.txt", "")
+        commitFile("b.txt", "")
+        cmd.cmd("branch", "topic")
+        cmd.cmd("checkout", "topic")
+        val execution = cmd.cmd("checkout", oid.short)
+
+        assertEquals(0, execution.status)
+        assertEquals("""
+            |Note: checking out '717094a'
+            |
+            |You are in 'detached HEAD' state. You can look around, make experimental
+            |changes and commit them, and you can discard any commits you make in this
+            |state without impacting any branches by performing another checkout.
+            |
+            |If you want to create a new branch to retain commits you create, you may
+            |do so (now or later) by using the branch command. Example:
+            |
+            |  gikt branch <new-branch-name>
+            |
+            |HEAD is now at 717094a commit
+        """.trimMargin(), execution.stderr.trim())
+    }
+
+    @Test
+    fun `checkout existing branch`() {
+        commitFile("a.txt", "")
+        cmd.cmd("branch", "topic")
+        cmd.cmd("checkout", "topic")
+
+        val execution = cmd.cmd("checkout", "topic")
+
+        assertEquals(0, execution.status)
+        assertEquals("""
+            |Already on 'topic'
+        """.trimMargin(), execution.stderr.trim())
+    }
 }

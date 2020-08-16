@@ -17,8 +17,12 @@ class Refs(private val pathname: Path) {
     }
 
     sealed class Ref {
-        data class SymRef(val path: Path) : Ref()
-        data class Oid(val oid: ObjectId) : Ref()
+        abstract val oid: ObjectId?
+        data class SymRef(val refs: Refs, val path: Path) : Ref() {
+            override val oid get() = refs.readSymRef(path)
+            val isHead get() = path == refs.headPath
+        }
+        data class Oid(override val oid: ObjectId) : Ref()
     }
 
     fun updateHead(oid: ObjectId) {
@@ -43,12 +47,18 @@ class Refs(private val pathname: Path) {
             readSymRef(it)
         }
 
+    fun currentRef(source: Path = headPath): Ref.SymRef =
+        when (val ref = readOidOrSymRef(source)) {
+            is Ref.SymRef -> currentRef(ref.path)
+            is Ref.Oid, null -> Ref.SymRef(this, source)
+        }
+
     private fun readOidOrSymRef(path: Path): Ref? =
         try {
             val data = path.readText().trim()
             SYMREF.find(data)
                 ?.destructured
-                ?.let { (ref) -> Ref.SymRef(path.parent.resolve(ref)) }
+                ?.let { (ref) -> Ref.SymRef(this, path.parent.resolve(ref)) }
                 ?: Ref.Oid(ObjectId(data))
         } catch (e: NoSuchFileException) {
             null

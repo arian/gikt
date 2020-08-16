@@ -49,6 +49,10 @@ class Database(private val pathname: Path) {
 
     private fun generateTempName() = "temp_obj_${tempChars.shuffled().joinToString("")}"
 
+    /**
+     * Use this only through [com.github.arian.gikt.repository.Repository],
+     * unless it's used to traverse the database tree.
+     */
     fun load(oid: ObjectId, prefix: Path): GiktObject {
         val objPath = objectPath(oid)
         val content = objPath.readBytes().inflate()
