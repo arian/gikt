@@ -11,20 +11,20 @@ class Checkout(ctx: CommandContext) : AbstractCommand(ctx) {
 
     private fun checkout(target: String): Nothing {
         try {
-            val revision = Revision(repository, target).resolve()
+            val targetOid = Revision(repository, target).resolve()
 
             val currentOid = repository.refs.readHead()
                 ?: throw UnbornHead("You are on a branch yet to be born")
 
             val code = repository.index.loadForUpdate {
 
-                val treeDiff: TreeDiffMap = repository.database.treeDiff(currentOid, revision)
+                val treeDiff: TreeDiffMap = repository.database.treeDiff(currentOid, targetOid)
                 val migration = repository.migration(treeDiff)
                 val result = migration.applyChanges(this)
 
                 if (result.errors.isEmpty()) {
                     writeUpdates()
-                    repository.refs.updateHead(revision)
+                    repository.refs.setHead(target, targetOid)
                     return@loadForUpdate 0
                 } else {
                     rollback()

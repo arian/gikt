@@ -8,7 +8,10 @@ import org.junit.jupiter.api.Test
 internal class CheckoutTest {
 
     private val cmd = CommandHelper()
-    private val TAB = "\t"
+
+    companion object {
+        private const val TAB = "\t"
+    }
 
     @BeforeEach
     fun before() {

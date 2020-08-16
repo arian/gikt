@@ -45,7 +45,10 @@ class RefsTest(private val fileSystemProvider: FileSystemExtension.FileSystemPro
     fun `create valid branch names`() {
         git.resolve("HEAD").write("abc123")
         val refs = Refs(git)
-        refs.createBranch("topic", ObjectId("abc"))
+        val oid = ObjectId("abcd")
+        refs.createBranch("topic", oid)
+        assertEquals("abc123", git.resolve("HEAD").readText())
+        assertEquals("${oid.hex}\n", git.resolve("refs/heads/topic").readText())
     }
 
     @Test
@@ -55,5 +58,46 @@ class RefsTest(private val fileSystemProvider: FileSystemExtension.FileSystemPro
         refs.createBranch("topic", ObjectId(""))
         val e = assertThrows<Refs.InvalidBranch> { refs.createBranch("topic", ObjectId("")) }
         assertEquals("A branch named 'topic' already exists.", e.message)
+    }
+
+    @Test
+    fun `setHead to a branch name should create a symbolic reference`() {
+        git.resolve("HEAD").write("abc123")
+        val oid = ObjectId("abc")
+
+        val refs = Refs(git)
+        refs.createBranch("topic", oid)
+        refs.setHead("topic", oid)
+
+        val headText = git.resolve("HEAD").readText()
+        assertEquals("ref: refs/heads/topic\n", headText)
+    }
+
+    @Test
+    fun `setHead to a non-existing name should store the commit ID oid`() {
+        git.resolve("HEAD").write("abc123")
+        val refs = Refs(git)
+        val oid = ObjectId("abcd")
+        refs.setHead("topic", oid)
+        assertEquals("${oid.hex}\n", git.resolve("HEAD").readText())
+    }
+
+    @Test
+    fun `readOidOrSymRef commit ID oid`() {
+        val oid = ObjectId("abcd")
+        val refs = Refs(git)
+        refs.updateHead(oid)
+        assertEquals(oid, refs.readHead())
+    }
+
+    @Test
+    fun `readOidOrSymRef symbolic ref`() {
+        val oid = ObjectId("abcd")
+
+        val refs = Refs(git)
+        refs.createBranch("topic", oid)
+        refs.setHead("topic", oid)
+
+        assertEquals(oid, refs.readHead())
     }
 }
