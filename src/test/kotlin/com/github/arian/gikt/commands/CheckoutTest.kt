@@ -292,12 +292,13 @@ internal class CheckoutTest {
     fun `checkout from HEAD to branch with name prints the new branch name`() {
         commitFile("a.txt", "")
         cmd.cmd("branch", "topic")
-        commitFile("b.txt", "")
+        val second = commitFile("b.txt", "")
+        cmd.cmd("checkout", second.short)
         val execution = cmd.cmd("checkout", "topic")
 
         assertEquals(0, execution.status)
         assertEquals("""
-            |Previous HEAD position was 8a45122 commit
+            |Previous HEAD position was ${second.short} commit
             |Switched to branch 'topic'
         """.trimMargin(), execution.stderr.trim())
     }

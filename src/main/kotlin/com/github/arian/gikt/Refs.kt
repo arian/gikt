@@ -26,7 +26,11 @@ class Refs(private val pathname: Path) {
     }
 
     fun updateHead(oid: ObjectId) {
-        updateRefFile(headPath, oid)
+        updateSymRef(headPath, oid)
+    }
+
+    fun updateHead(ref: String) {
+        updateRefFile(headPath, ref)
     }
 
     fun setHead(revision: String, oid: ObjectId) {
@@ -92,20 +96,37 @@ class Refs(private val pathname: Path) {
         updateRefFile(path, startOid)
     }
 
+    private fun updateSymRef(path: Path, oid: ObjectId) {
+        Lockfile(path).holdForUpdate {
+            when (val ref = readOidOrSymRef(path)) {
+                is Ref.Oid, null -> it.writeRef(oid.hex)
+                is Ref.SymRef -> {
+                    try {
+                        updateSymRef(ref.path, oid)
+                    } finally {
+                        it.rollback()
+                    }
+                }
+            }
+        }
+    }
+
     private fun updateRefFile(path: Path, oid: ObjectId) =
         updateRefFile(path, oid.hex)
 
     private fun updateRefFile(path: Path, ref: String) {
-        fun update() = Lockfile(path).holdForUpdate {
-            it.write(ref)
-            it.write("\n")
-            it.commit()
-        }
+        fun update() = Lockfile(path).holdForUpdate { it.writeRef(ref) }
         try {
             update()
         } catch (e: Lockfile.MissingParent) {
             path.parent.mkdirp()
             update()
         }
+    }
+
+    private fun Lockfile.Ref.writeRef(ref: String) {
+        write(ref)
+        write("\n")
+        commit()
     }
 }
