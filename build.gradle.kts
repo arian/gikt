@@ -10,17 +10,17 @@ plugins {
 
 group = "com.github.arian"
 version = "0.0.1"
-val mainClass = "com.github.arian.gikt.GiktKt"
+val mainClassString = "com.github.arian.gikt.GiktKt"
 
 application {
-    mainClassName = mainClass
+    mainClassName = mainClassString
 }
 
 tasks {
 
     fun JavaExec.cmd(args: String) {
         classpath = sourceSets["main"].runtimeClasspath
-        main = mainClass
+        main = mainClassString
         setArgsString(args)
     }
 
