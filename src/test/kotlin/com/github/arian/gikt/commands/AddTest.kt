@@ -47,7 +47,8 @@ class AddTest {
         cmd.cmd("add", "hello.txt")
 
         assertIndex(
-            cmd.repository, listOf(
+            cmd.repository,
+            listOf(
                 "hello.txt" to false,
                 "world.txt" to false
             )

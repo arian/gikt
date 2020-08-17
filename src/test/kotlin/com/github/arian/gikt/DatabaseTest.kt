@@ -3,13 +3,13 @@ package com.github.arian.gikt
 import com.github.arian.gikt.database.Blob
 import com.github.arian.gikt.database.Database
 import com.github.arian.gikt.test.FileSystemExtension
-import java.nio.file.Files
-import java.nio.file.Path
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
+import java.nio.file.Files
+import java.nio.file.Path
 
 @ExtendWith(FileSystemExtension::class)
 class DatabaseTest(private val fileSystemProvider: FileSystemExtension.FileSystemProvider) {

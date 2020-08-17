@@ -6,12 +6,12 @@ import com.github.arian.gikt.deflate
 import com.github.arian.gikt.mkdirp
 import com.github.arian.gikt.test.FileSystemExtension
 import com.github.arian.gikt.write
-import java.nio.file.Path
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
+import java.nio.file.Path
 
 @ExtendWith(FileSystemExtension::class)
 class RepositoryTest(private val fileSystemProvider: FileSystemExtension.FileSystemProvider) {

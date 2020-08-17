@@ -3,7 +3,6 @@ package com.github.arian.gikt.repository
 import com.github.arian.gikt.Refs
 import com.github.arian.gikt.Workspace
 import com.github.arian.gikt.database.Database
-import com.github.arian.gikt.database.Entry as DatabaseEntry
 import com.github.arian.gikt.database.GiktObject
 import com.github.arian.gikt.database.ObjectId
 import com.github.arian.gikt.database.Tree
@@ -12,6 +11,7 @@ import com.github.arian.gikt.index.Index
 import com.github.arian.gikt.relativeTo
 import java.io.IOException
 import java.nio.file.Path
+import com.github.arian.gikt.database.Entry as DatabaseEntry
 
 class Repository(private val rootPath: Path) {
 

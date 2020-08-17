@@ -1,8 +1,8 @@
 package com.github.arian.gikt
 
-import com.github.arian.gikt.database.Commit as DbCommit
 import com.github.arian.gikt.database.ObjectId
 import com.github.arian.gikt.repository.Repository
+import com.github.arian.gikt.database.Commit as DbCommit
 
 class Revision(private val repo: Repository, private val expression: String) {
 

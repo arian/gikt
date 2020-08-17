@@ -7,13 +7,13 @@ import com.github.arian.gikt.makeExecutable
 import com.github.arian.gikt.mkdirp
 import com.github.arian.gikt.relativeTo
 import com.github.arian.gikt.touch
-import java.nio.file.Files
-import java.nio.file.Path
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import java.nio.file.Files
+import java.nio.file.Path
 
 class TreeTest {
 

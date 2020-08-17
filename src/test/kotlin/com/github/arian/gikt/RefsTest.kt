@@ -2,13 +2,13 @@ package com.github.arian.gikt
 
 import com.github.arian.gikt.database.ObjectId
 import com.github.arian.gikt.test.FileSystemExtension
-import java.nio.file.Path
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
+import java.nio.file.Path
 
 @ExtendWith(FileSystemExtension::class)
 class RefsTest(private val fileSystemProvider: FileSystemExtension.FileSystemProvider) {

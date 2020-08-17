@@ -7,11 +7,11 @@ import com.github.arian.gikt.relativeTo
 import com.github.arian.gikt.stat
 import com.github.arian.gikt.test.FileSystemExtension
 import com.github.arian.gikt.write
-import java.nio.file.Path
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
+import java.nio.file.Path
 
 @ExtendWith(FileSystemExtension::class)
 internal class TreeDiffTest(private val fileSystemProvider: FileSystemExtension.FileSystemProvider) {
@@ -110,7 +110,8 @@ internal class TreeDiffTest(private val fileSystemProvider: FileSystemExtension.
             mapOf(
                 "a/b.txt" to ("e69de29bb2d1d6434b8b29ae775ad8c2e48c5391" to null),
                 "a/b/c.txt" to (null to "2e65efe2a145dda7ee51d1741299f848e5bf752e")
-            ), diff
+            ),
+            diff
         )
     }
 }

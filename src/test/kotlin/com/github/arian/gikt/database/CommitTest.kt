@@ -1,14 +1,14 @@
 package com.github.arian.gikt.database
 
 import com.github.arian.gikt.utf8
-import java.time.Clock
-import java.time.Instant
-import java.time.ZoneId
-import java.time.ZonedDateTime
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZonedDateTime
 
 class CommitTest {
 
@@ -60,7 +60,8 @@ class CommitTest {
               |committer arian <arian@example.com> 1565777302 +0200
               |
               |hello
-              """.trimMargin(), commit.data.toString(Charsets.UTF_8)
+              """.trimMargin(),
+            commit.data.toString(Charsets.UTF_8)
         )
     }
 

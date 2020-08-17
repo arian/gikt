@@ -200,12 +200,15 @@ internal class CheckoutTest {
         val execution = cmd.cmd("checkout", head.short)
 
         assertEquals(1, execution.status)
-        assertEquals("""
+        assertEquals(
+            """
             error: The following untracked working tree files would be overwritten by checkout:
             ${TAB}b.txt
             Please move or remove them before you switch branches.
             Aborting
-        """.trimIndent(), execution.stderr.trim())
+            """.trimIndent(),
+            execution.stderr.trim()
+        )
     }
 
     @Test
@@ -217,12 +220,15 @@ internal class CheckoutTest {
         val execution = cmd.cmd("checkout", head.short)
 
         assertEquals(1, execution.status)
-        assertEquals("""
+        assertEquals(
+            """
             error: Your local changes to the following files would be overwritten by checkout:
             ${TAB}a.txt
             Please commit your changes or stash them before you switch branches.
             Aborting
-        """.trimIndent(), execution.stderr.trim())
+            """.trimIndent(),
+            execution.stderr.trim()
+        )
     }
 
     @Test
@@ -235,12 +241,15 @@ internal class CheckoutTest {
         val execution = cmd.cmd("checkout", head.short)
 
         assertEquals(1, execution.status)
-        assertEquals("""
+        assertEquals(
+            """
             error: Your local changes to the following files would be overwritten by checkout:
             ${TAB}a.txt
             Please commit your changes or stash them before you switch branches.
             Aborting
-        """.trimIndent(), execution.stderr.trim())
+            """.trimIndent(),
+            execution.stderr.trim()
+        )
     }
 
     @Test
@@ -253,12 +262,15 @@ internal class CheckoutTest {
         val execution = cmd.cmd("checkout", head.short)
 
         assertEquals(1, execution.status)
-        assertEquals("""
+        assertEquals(
+            """
             error: Updating the following directories would lose untracked files in them:
             ${TAB}a
 
             Aborting
-        """.trimIndent(), execution.stderr.trim())
+            """.trimIndent(),
+            execution.stderr.trim()
+        )
     }
 
     @Test
@@ -278,14 +290,17 @@ internal class CheckoutTest {
         val execution = cmd.cmd("checkout", head.short)
 
         assertEquals(1, execution.status)
-        assertEquals("""
+        assertEquals(
+            """
             error: Your local changes to the following files would be overwritten by checkout:
             ${TAB}a.txt
             ${TAB}b.txt
             ${TAB}c.txt
             Please commit your changes or stash them before you switch branches.
             Aborting
-        """.trimIndent(), execution.stderr.trim())
+            """.trimIndent(),
+            execution.stderr.trim()
+        )
     }
 
     @Test
@@ -297,10 +312,13 @@ internal class CheckoutTest {
         val execution = cmd.cmd("checkout", "topic")
 
         assertEquals(0, execution.status)
-        assertEquals("""
+        assertEquals(
+            """
             |Previous HEAD position was ${second.short} commit
             |Switched to branch 'topic'
-        """.trimMargin(), execution.stderr.trim())
+            """.trimMargin(),
+            execution.stderr.trim()
+        )
     }
 
     @Test
@@ -313,9 +331,12 @@ internal class CheckoutTest {
         val execution = cmd.cmd("checkout", "topic")
 
         assertEquals(0, execution.status)
-        assertEquals("""
+        assertEquals(
+            """
             |Switched to branch 'topic'
-        """.trimMargin(), execution.stderr.trim())
+            """.trimMargin(),
+            execution.stderr.trim()
+        )
     }
 
     @Test
@@ -327,7 +348,8 @@ internal class CheckoutTest {
         val execution = cmd.cmd("checkout", oid.short)
 
         assertEquals(0, execution.status)
-        assertEquals("""
+        assertEquals(
+            """
             |Note: checking out '717094a'
             |
             |You are in 'detached HEAD' state. You can look around, make experimental
@@ -340,7 +362,9 @@ internal class CheckoutTest {
             |  gikt branch <new-branch-name>
             |
             |HEAD is now at 717094a commit
-        """.trimMargin(), execution.stderr.trim())
+            """.trimMargin(),
+            execution.stderr.trim()
+        )
     }
 
     @Test
@@ -352,8 +376,11 @@ internal class CheckoutTest {
         val execution = cmd.cmd("checkout", "topic")
 
         assertEquals(0, execution.status)
-        assertEquals("""
+        assertEquals(
+            """
             |Already on 'topic'
-        """.trimMargin(), execution.stderr.trim())
+            """.trimMargin(),
+            execution.stderr.trim()
+        )
     }
 }

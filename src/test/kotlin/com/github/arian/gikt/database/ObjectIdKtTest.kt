@@ -8,10 +8,12 @@ class ObjectIdKtTest {
     fun hexOfId() {
         assertEquals(
             "ff00ab0000000000000000000000000000000000",
-            ObjectId(ByteArray(20).also {
-                it[0] = 0xFF.toByte()
-                it[2] = 0xAB.toByte()
-            }).hex
+            ObjectId(
+                ByteArray(20).also {
+                    it[0] = 0xFF.toByte()
+                    it[2] = 0xAB.toByte()
+                }
+            ).hex
         )
     }
 

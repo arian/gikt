@@ -179,15 +179,16 @@ class Status(private val repository: Repository) {
 
     private fun readTree(oid: ObjectId, prefix: Path): Map<String, TreeEntry> =
         when (val tree = repository.database.load(oid, prefix)) {
-            is Tree -> tree
-                .list()
-                .map { entry ->
-                    when {
-                        entry.isTree() -> readTree(entry.oid, entry.name)
-                        else -> mapOf(entry.name.toString() to entry)
+            is Tree ->
+                tree
+                    .list()
+                    .map { entry ->
+                        when {
+                            entry.isTree() -> readTree(entry.oid, entry.name)
+                            else -> mapOf(entry.name.toString() to entry)
+                        }
                     }
-                }
-                .fold(emptyMap()) { a, b -> a + b }
+                    .fold(emptyMap()) { a, b -> a + b }
             else -> emptyMap()
         }
 

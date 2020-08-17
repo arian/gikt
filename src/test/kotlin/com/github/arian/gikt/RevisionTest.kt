@@ -8,12 +8,6 @@ import com.github.arian.gikt.database.Commit
 import com.github.arian.gikt.database.ObjectId
 import com.github.arian.gikt.repository.Repository
 import com.github.arian.gikt.test.FileSystemExtension
-import java.nio.file.Files
-import java.nio.file.Path
-import java.time.Clock
-import java.time.Instant
-import java.time.ZoneId
-import java.time.ZonedDateTime
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -24,6 +18,12 @@ import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
+import java.nio.file.Files
+import java.nio.file.Path
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZonedDateTime
 
 class RevisionTest {
 

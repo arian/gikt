@@ -101,7 +101,8 @@ class Checkout(ctx: CommandContext) : AbstractCommand(ctx) {
     }
 
     companion object {
-        private val DETACHED_HEAD_MESSAGE = """
+        private val DETACHED_HEAD_MESSAGE =
+            """
             |You are in 'detached HEAD' state. You can look around, make experimental
             |changes and commit them, and you can discard any commits you make in this
             |state without impacting any branches by performing another checkout.

@@ -7,7 +7,8 @@ import com.github.arian.gikt.index.Index
 import com.github.arian.gikt.repository.Repository
 import java.nio.file.Path
 
-private val LOCKED_INDEX_MESSAGE = """
+private val LOCKED_INDEX_MESSAGE =
+    """
     Another gikt process seems to be running in this repository.
     Please make sure all processes are terminated then try again.
     If it still fails, a gikt process may have crashed in this

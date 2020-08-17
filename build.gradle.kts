@@ -5,7 +5,7 @@ plugins {
     kotlin("jvm") version "1.4.0"
     application
     id("com.adarshr.test-logger") version "2.0.0"
-    id("com.diffplug.gradle.spotless") version "3.28.1"
+    id("com.diffplug.spotless") version "5.1.1"
 }
 
 group = "com.github.arian"
@@ -54,10 +54,10 @@ tasks {
 
 spotless {
     kotlin {
-        ktlint("0.36.0")
+        ktlint("0.37.2")
     }
     kotlinGradle {
-        ktlint("0.36.0")
+        ktlint("0.37.2")
     }
 }
 

@@ -1,12 +1,12 @@
 package com.github.arian.gikt.test
 
 import com.github.marschall.memoryfilesystem.MemoryFileSystemBuilder
-import java.nio.file.FileSystem
 import org.junit.jupiter.api.extension.AfterEachCallback
 import org.junit.jupiter.api.extension.BeforeEachCallback
 import org.junit.jupiter.api.extension.ExtensionContext
 import org.junit.jupiter.api.extension.ParameterContext
 import org.junit.jupiter.api.extension.ParameterResolver
+import java.nio.file.FileSystem
 
 class FileSystemExtension : BeforeEachCallback, AfterEachCallback, ParameterResolver {
 
