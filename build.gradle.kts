@@ -2,7 +2,7 @@ import com.adarshr.gradle.testlogger.theme.ThemeType
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm") version "1.3.72"
+    kotlin("jvm") version "1.4.0"
     application
     id("com.adarshr.test-logger") version "2.0.0"
     id("com.diffplug.gradle.spotless") version "3.28.1"
@@ -66,7 +66,6 @@ repositories {
 }
 
 dependencies {
-    implementation(kotlin("stdlib-jdk8"))
     testImplementation("org.junit.jupiter:junit-jupiter:5.6.2")
     testImplementation("com.github.marschall:memoryfilesystem:2.1.0")
 }
