@@ -5,6 +5,8 @@ import com.github.arian.gikt.Workspace
 import com.github.arian.gikt.database.Blob
 import com.github.arian.gikt.index.Index
 import com.github.arian.gikt.repository.Repository
+import kotlinx.cli.ArgType
+import kotlinx.cli.vararg
 import java.nio.file.Path
 
 private val LOCKED_INDEX_MESSAGE =
@@ -15,7 +17,9 @@ private val LOCKED_INDEX_MESSAGE =
     repository earlier: remove the file manually to continue.
     """.trimIndent()
 
-class Add(ctx: CommandContext) : AbstractCommand(ctx) {
+class Add(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
+
+    val files: List<String> by argument(ArgType.String).vararg()
 
     override fun run() {
         kotlin
@@ -39,7 +43,7 @@ class Add(ctx: CommandContext) : AbstractCommand(ctx) {
     }
 
     private fun expandedPaths(repository: Repository): List<Path> =
-        ctx.args.flatMap {
+        files.flatMap {
             repository.workspace.listFiles(repository.resolvePath(it))
         }
 

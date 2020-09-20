@@ -6,7 +6,7 @@ import com.github.arian.gikt.database.Tree
 import com.github.arian.gikt.repository.Repository
 import java.nio.file.Path
 
-class ShowHead(ctx: CommandContext) : AbstractCommand(ctx) {
+class ShowHead(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
     override fun run() {
         val repository = Repository(ctx.dir)
 

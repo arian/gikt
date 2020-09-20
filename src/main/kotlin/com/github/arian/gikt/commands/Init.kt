@@ -3,7 +3,7 @@ package com.github.arian.gikt.commands
 import com.github.arian.gikt.Refs
 import com.github.arian.gikt.mkdirp
 
-class Init(ctx: CommandContext) : AbstractCommand(ctx) {
+class Init(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
 
     companion object {
         private const val DEFAULT_BRANCH = "main"

@@ -62,10 +62,12 @@ spotless {
 }
 
 repositories {
+    maven { url = uri("https://kotlin.bintray.com/kotlinx") }
     mavenCentral()
 }
 
 dependencies {
+    implementation("org.jetbrains.kotlinx:kotlinx-cli:0.3")
     testImplementation("org.junit.jupiter:junit-jupiter:5.6.2")
     testImplementation("com.github.marschall:memoryfilesystem:2.1.0")
 }

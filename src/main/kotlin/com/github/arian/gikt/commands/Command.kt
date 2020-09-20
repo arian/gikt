@@ -3,13 +3,20 @@ package com.github.arian.gikt.commands
 import com.github.arian.gikt.commands.util.Pager
 import com.github.arian.gikt.commands.util.Style
 import com.github.arian.gikt.repository.Repository
+import kotlinx.cli.ArgParser
+import kotlinx.cli.ArgType
+import kotlinx.cli.Argument
+import kotlinx.cli.DefaultRequiredType
+import kotlinx.cli.SingleArgument
+import kotlinx.cli.SingleNullableOption
 import java.io.InputStream
 import java.io.PrintStream
 import java.nio.file.Path
 import java.time.Clock
+import kotlin.reflect.KProperty
 
 typealias Environment = (key: String) -> String?
-typealias CommandFactory = (ctx: CommandContext) -> Command
+typealias CommandFactory = (ctx: CommandContext, name: String) -> Command
 
 data class CommandContext(
     val dir: Path,
@@ -31,13 +38,35 @@ interface Command {
     fun execute(): CommandExecution
 }
 
-abstract class AbstractCommand(val ctx: CommandContext) : Command {
+abstract class AbstractCommand(val ctx: CommandContext, val name: String) : Command {
 
     internal val repository by lazy { Repository(ctx.dir) }
+
+    private val parser = ArgParser("gikt $name")
+
+    fun <T : Any> option(
+        type: ArgType<T>,
+        fullName: String? = null,
+        shortName: String? = null,
+        description: String? = null,
+    ): SingleNullableOption<T> =
+        parser.option(type, fullName, shortName, description)
+
+    fun <T : Any> argument(
+        type: ArgType<T>,
+        fullName: String? = null,
+        description: String? = null,
+    ): SingleArgument<T, DefaultRequiredType.Required> =
+        parser.argument(type, fullName, description)
+
+    operator fun <T> Argument<T>.getValue(add: AbstractCommand, property: KProperty<*>): T {
+        return value
+    }
 
     internal abstract fun run()
 
     override fun execute(): CommandExecution {
+        parser.parse(ctx.args.toTypedArray())
         val status = try {
             run()
             0
@@ -62,38 +91,42 @@ abstract class AbstractCommand(val ctx: CommandContext) : Command {
         }
 }
 
-class PagerCommand(private val ctx: CommandContext, private val subCmdFactory: CommandFactory) : Command {
+class PagerCommand(
+    private val ctx: CommandContext,
+    private val name: String,
+    private val subCmdFactory: CommandFactory
+) : Command {
     override fun execute(): CommandExecution =
         when (ctx.isatty) {
-            true -> Pager().start { pagerOut -> subCmdFactory(ctx.copy(stdout = pagerOut)).execute() }
-            false -> subCmdFactory(ctx).execute()
+            true -> Pager().start { pagerOut -> subCmdFactory(ctx.copy(stdout = pagerOut), name).execute() }
+            false -> subCmdFactory(ctx, name).execute()
         }
 }
 
 object Commands {
 
     private val commands: Map<String, CommandFactory> = mapOf(
-        "add" to cmd { Add(it) },
-        "branch" to cmd { Branch(it) },
-        "checkout" to cmd { Checkout(it) },
-        "commit" to cmd { Commit(it) },
-        "diff" to withPager { Diff(it) },
-        "help" to cmd { Help(it) },
-        "init" to cmd { Init(it) },
-        "ls-files" to cmd { ListFiles(it) },
-        "paged" to withPager { Paged(it) },
-        "show-head" to cmd { ShowHead(it) },
-        "status" to cmd { Status(it) }
+        "add" to cmd { ctx, name -> Add(ctx, name) },
+        "branch" to cmd { ctx, name -> Branch(ctx, name) },
+        "checkout" to cmd { ctx, name -> Checkout(ctx, name) },
+        "commit" to cmd { ctx, name -> Commit(ctx, name) },
+        "diff" to withPager { ctx, name -> Diff(ctx, name) },
+        "help" to cmd { ctx, name -> Help(ctx, name) },
+        "init" to cmd { ctx, name -> Init(ctx, name) },
+        "ls-files" to cmd { ctx, name -> ListFiles(ctx, name) },
+        "paged" to withPager { ctx, name -> Paged(ctx, name) },
+        "show-head" to cmd { ctx, name -> ShowHead(ctx, name) },
+        "status" to cmd { ctx, name -> Status(ctx, name) }
     )
 
     private fun cmd(fn: CommandFactory): CommandFactory = fn
 
     private fun withPager(fn: CommandFactory): CommandFactory =
-        { ctx -> PagerCommand(ctx, fn) }
+        { ctx, name -> PagerCommand(ctx, name, fn) }
 
     fun execute(name: String, ctx: CommandContext): CommandExecution =
         commands[name]
-            ?.invoke(ctx)
+            ?.invoke(ctx, name)
             ?.execute()
             ?: CommandExecution(ctx, 1).also { ctx.stderr.println("'$name' is not a gikt command.") }
 

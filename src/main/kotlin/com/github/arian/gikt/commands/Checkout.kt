@@ -5,10 +5,15 @@ import com.github.arian.gikt.Revision
 import com.github.arian.gikt.database.Commit
 import com.github.arian.gikt.database.ObjectId
 import com.github.arian.gikt.database.TreeDiffMap
+import kotlinx.cli.ArgType
+import kotlinx.cli.default
+import kotlinx.cli.optional
 
-class Checkout(ctx: CommandContext) : AbstractCommand(ctx) {
+class Checkout(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
+
+    private val target: String by argument(ArgType.String, fullName = "path").optional().default("HEAD")
+
     override fun run() {
-        val target = ctx.args.firstOrNull() ?: "HEAD"
         checkout(target)
     }
 

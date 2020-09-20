@@ -2,13 +2,18 @@ package com.github.arian.gikt.commands
 
 import com.github.arian.gikt.Refs
 import com.github.arian.gikt.Revision
+import kotlinx.cli.ArgType
+import kotlinx.cli.optional
 
-class Branch(ctx: CommandContext) : AbstractCommand(ctx) {
+class Branch(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
+
+    private val branch: String? by argument(ArgType.String, fullName = "branch").optional()
+    private val startPoint: String? by argument(ArgType.String, fullName = "start-point").optional()
+
     override fun run() {
-
-        when (val first = ctx.args.firstOrNull()) {
+        when (val b = branch) {
             null -> listBranches()
-            else -> createBranch(first, ctx.args.getOrNull(1))
+            else -> createBranch(b, startPoint)
         }
     }
 

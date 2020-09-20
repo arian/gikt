@@ -2,16 +2,20 @@ package com.github.arian.gikt.commands
 
 import com.github.arian.gikt.commands.util.Style
 import com.github.arian.gikt.repository.Status
+import kotlinx.cli.ArgType
+import kotlinx.cli.default
 
-class Status(ctx: CommandContext) : AbstractCommand(ctx) {
+class Status(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
+
+    private val porcelain: Boolean by option(ArgType.Boolean).default(false)
 
     override fun run() {
         val scan = repository.index.loadForUpdate {
             repository.status().scan(this).also { writeUpdates() }
         }
 
-        when (ctx.args.firstOrNull()) {
-            "--porcelain" -> printResults(scan)
+        when (porcelain) {
+            true -> printResults(scan)
             else -> printLongFormat(scan)
         }
 

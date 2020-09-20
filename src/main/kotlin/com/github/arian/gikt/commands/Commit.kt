@@ -5,7 +5,7 @@ import com.github.arian.gikt.database.Commit
 import com.github.arian.gikt.database.Entry
 import java.time.Instant
 
-class Commit(ctx: CommandContext) : AbstractCommand(ctx) {
+class Commit(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
     override fun run() {
         val name = ctx.env("GIT_AUTHOR_NAME") ?: error("please set GIT_AUTHOR_NAME")
         val email = ctx.env("GIT_AUTHOR_EMAIL") ?: error("please set GIT_AUTHOR_EMAIL")

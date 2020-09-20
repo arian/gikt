@@ -9,10 +9,14 @@ import com.github.arian.gikt.database.TreeEntry
 import com.github.arian.gikt.index.Entry
 import com.github.arian.gikt.repository.Status
 import com.github.arian.gikt.utf8
+import kotlinx.cli.ArgType
+import kotlinx.cli.default
 import java.nio.file.Path
 import java.util.Objects
 
-class Diff(ctx: CommandContext) : AbstractCommand(ctx) {
+class Diff(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
+
+    val cached: Boolean by option(ArgType.Boolean).default(false)
 
     private data class Target(
         val path: String,
@@ -33,8 +37,8 @@ class Diff(ctx: CommandContext) : AbstractCommand(ctx) {
         val index = repository.index.load()
         val scan = repository.status().scan(index)
 
-        when (ctx.args.firstOrNull()) {
-            "--cached" -> diffHeadIndex(scan)
+        when (cached) {
+            true -> diffHeadIndex(scan)
             else -> diffIndexWorkspace(scan)
         }
 
