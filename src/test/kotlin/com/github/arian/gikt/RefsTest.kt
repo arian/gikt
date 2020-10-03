@@ -100,4 +100,54 @@ class RefsTest(private val fileSystemProvider: FileSystemExtension.FileSystemPro
 
         assertEquals(oid, refs.readHead())
     }
+
+    @Test
+    fun `currentRef returns the oid if the hash is directly in the HEAD`() {
+        val oid = ObjectId("abcd")
+        git.resolve("HEAD").write(oid.hex)
+        val refs = Refs(git)
+        assertEquals(oid, refs.currentRef().oid)
+        assertEquals("HEAD", refs.currentRef().shortName)
+    }
+
+    @Test
+    fun `currentRef returns the oid of the sym ref`() {
+        git.resolve("HEAD").write("abc123")
+        val refs = Refs(git)
+
+        val oid = ObjectId("abcd")
+        refs.createBranch("topic", oid)
+        refs.setHead("topic", oid)
+
+        assertEquals(oid, refs.currentRef().oid)
+        assertEquals("topic", refs.currentRef().shortName)
+    }
+
+    @Test
+    fun `listBranches should list the created branches alphabetically`() {
+        val refs = Refs(git)
+        val oid = ObjectId("abcd")
+        refs.createBranch("topic", oid)
+        refs.createBranch("bar", oid)
+        refs.createBranch("foo/qux", oid)
+
+        assertEquals(
+            listOf("refs/heads/bar", "refs/heads/foo/qux", "refs/heads/topic"),
+            refs.listBranches().map { it.longName }
+        )
+    }
+
+    @Test
+    fun `listBranches SymRef shortName property just shows the branch name`() {
+        val refs = Refs(git)
+        val oid = ObjectId("abcd")
+        refs.createBranch("topic", oid)
+        refs.createBranch("bar", oid)
+        refs.createBranch("foo/qux", oid)
+
+        assertEquals(
+            listOf("bar", "foo/qux", "topic"),
+            refs.listBranches().map { it.shortName }
+        )
+    }
 }

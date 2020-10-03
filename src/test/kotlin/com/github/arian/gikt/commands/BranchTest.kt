@@ -16,10 +16,10 @@ class BranchTest {
         cmd.init()
     }
 
-    private fun commitFile(): ObjectId {
+    private fun commitFile(msg: String = "commit"): ObjectId {
         cmd.touch("file-${count++}")
         cmd.cmd("add", ".")
-        cmd.commit("commit")
+        cmd.commit(msg)
         return requireNotNull(cmd.repository.refs.readHead())
     }
 
@@ -166,6 +166,51 @@ class BranchTest {
 
             """.trimIndent(),
             execution.stderr
+        )
+    }
+
+    @Test
+    fun `branch without arguments should list the created branches`() {
+        commitFile()
+        cmd.cmd("branch", "topic")
+        cmd.cmd("branch", "foo/qux")
+        cmd.cmd("branch", "bar")
+        cmd.cmd("checkout", "bar")
+
+        val execution = cmd.cmd("branch")
+
+        assertEquals(0, execution.status)
+        assertEquals(
+            """
+            |* bar
+            |  foo/qux
+            |  main
+            |  topic
+            |""".trimMargin(),
+            execution.stdout
+        )
+    }
+
+    @Test
+    fun `branch without arguments and verbose option should show branch information`() {
+        val oid1 = commitFile("first")
+        cmd.cmd("branch", "topic")
+        val oid2 = commitFile()
+        cmd.cmd("branch", "foo/qux")
+        cmd.cmd("branch", "bar")
+        cmd.cmd("checkout", "bar")
+
+        val execution = cmd.cmd("branch", "--verbose")
+
+        assertEquals(0, execution.status)
+        assertEquals(
+            """
+            |* bar     ${oid2.short} commit
+            |  foo/qux ${oid2.short} commit
+            |  main    ${oid2.short} commit
+            |  topic   ${oid1.short} first
+            |""".trimMargin(),
+            execution.stdout
         )
     }
 }

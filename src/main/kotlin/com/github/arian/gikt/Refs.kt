@@ -18,9 +18,21 @@ class Refs(private val pathname: Path) {
 
     sealed class Ref {
         abstract val oid: ObjectId?
-        data class SymRef(val refs: Refs, val path: Path) : Ref() {
+        data class SymRef(private val refs: Refs, internal val path: Path) : Ref() {
             override val oid get() = refs.readSymRef(path)
-            val isHead get() = path == refs.headPath
+
+            val isHead get() =
+                path == refs.headPath
+
+            val shortName get(): String {
+                val prefix = listOf(refs.headsPath, refs.pathname).find { dir ->
+                    path.parentPaths().any { it == dir }
+                }
+                return path.relativeTo(prefix ?: refs.pathname).toString()
+            }
+
+            val longName get(): String =
+                path.relativeTo(refs.pathname).toString()
         }
         data class Oid(override val oid: ObjectId) : Ref()
     }
@@ -128,5 +140,21 @@ class Refs(private val pathname: Path) {
         write(ref)
         write("\n")
         commit()
+    }
+
+    fun listBranches(): List<Ref.SymRef> {
+        return listRefs(headsPath)
+    }
+
+    private fun listRefs(dirname: Path): List<Ref.SymRef> {
+        return dirname
+            .listFiles()
+            .flatMap { name ->
+                if (name.isDirectory()) {
+                    listRefs(name)
+                } else {
+                    listOf(Ref.SymRef(this, name))
+                }
+            }
     }
 }
