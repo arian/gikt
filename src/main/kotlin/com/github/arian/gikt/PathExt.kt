@@ -38,7 +38,7 @@ fun Path.parentPaths(): List<Path> =
 
 fun Path.readBytes(): ByteArray = Files.readAllBytes(this)
 
-fun Path.readText(): String = Files.newBufferedReader(this).readText()
+fun Path.readText(): String = Files.newBufferedReader(this).use { it.readText() }
 
 fun Path.write(text: String): Path = Files.writeString(this, text)
 

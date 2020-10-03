@@ -1,6 +1,7 @@
 package com.github.arian.gikt
 
 import com.github.arian.gikt.database.ObjectId
+import java.nio.file.DirectoryNotEmptyException
 import java.nio.file.NoSuchFileException
 import java.nio.file.Path
 
@@ -18,22 +19,27 @@ class Refs(private val pathname: Path) {
 
     sealed class Ref {
         abstract val oid: ObjectId?
+
         data class SymRef(private val refs: Refs, internal val path: Path) : Ref() {
             override val oid get() = refs.readSymRef(path)
 
-            val isHead get() =
-                path == refs.headPath
+            val isHead
+                get() =
+                    path == refs.headPath
 
-            val shortName get(): String {
-                val prefix = listOf(refs.headsPath, refs.pathname).find { dir ->
-                    path.parentPaths().any { it == dir }
+            val shortName
+                get(): String {
+                    val prefix = listOf(refs.headsPath, refs.pathname).find { dir ->
+                        path.parentPaths().any { it == dir }
+                    }
+                    return path.relativeTo(prefix ?: refs.pathname).toString()
                 }
-                return path.relativeTo(prefix ?: refs.pathname).toString()
-            }
 
-            val longName get(): String =
-                path.relativeTo(refs.pathname).toString()
+            val longName
+                get(): String =
+                    path.relativeTo(refs.pathname).toString()
         }
+
         data class Oid(override val oid: ObjectId) : Ref()
     }
 
@@ -58,10 +64,21 @@ class Refs(private val pathname: Path) {
     fun readHead(): ObjectId? =
         readSymRef(headPath)
 
+    fun readHeadOrThrow(): ObjectId =
+        readHead()
+            ?: throw Revision.InvalidObject("Not a valid object name: '${currentBranchName()}'")
+
     fun readRef(name: String): ObjectId? =
         pathForName(name)?.let {
             readSymRef(it)
         }
+
+    private fun currentBranchName(): String {
+        return when (val ref = readOidOrSymRef(headPath)) {
+            is Ref.SymRef -> ref.shortName
+            else -> throw IllegalStateException("Couldn't read 'HEAD'")
+        }
+    }
 
     fun currentRef(source: Path = headPath): Ref.SymRef =
         when (val ref = readOidOrSymRef(source)) {
@@ -156,5 +173,37 @@ class Refs(private val pathname: Path) {
                     listOf(Ref.SymRef(this, name))
                 }
             }
+    }
+
+    fun deleteBranch(branchName: String): ObjectId {
+        val path = headsPath.resolve(branchName)
+
+        return try {
+            Lockfile(path).holdForUpdate {
+                try {
+                    val oid = requireNotNull(readSymRef(path))
+                    path.delete()
+                    oid
+                } finally {
+                    it.rollback()
+                    deleteParentDirectories(path)
+                }
+            }
+        } catch (e: Exception) {
+            throw InvalidBranch("branch '$branchName' not found.")
+        }
+    }
+
+    private fun deleteParentDirectories(path: Path) {
+        path.parentPaths().reversed().forEach { dir ->
+            if (dir == headsPath) {
+                return
+            }
+            try {
+                dir.delete()
+            } catch (e: DirectoryNotEmptyException) {
+                return
+            }
+        }
     }
 }

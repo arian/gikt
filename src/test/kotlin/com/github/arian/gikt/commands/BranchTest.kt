@@ -3,6 +3,7 @@ package com.github.arian.gikt.commands
 import com.github.arian.gikt.database.Blob
 import com.github.arian.gikt.database.ObjectId
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
@@ -90,6 +91,19 @@ class BranchTest {
         val featureRef = cmd.readFile(".git/refs/heads/feature").trim()
 
         assertEquals(topicRef, featureRef)
+    }
+
+    @Test
+    fun `creates branch when HEAD does not exist yet fails`() {
+        val execution = cmd.cmd("branch", "topic")
+        assertEquals(128, execution.status)
+        assertEquals(
+            """
+            fatal: Not a valid object name: 'main'
+
+            """.trimIndent(),
+            execution.stderr
+        )
     }
 
     @Test
@@ -211,6 +225,65 @@ class BranchTest {
             |  topic   ${oid1.short} first
             |""".trimMargin(),
             execution.stdout
+        )
+    }
+
+    @Test
+    fun `deleted branches should not be listed anymore`() {
+        val oid = commitFile()
+        cmd.cmd("branch", "topic")
+        cmd.cmd("branch", "foo/qux")
+        cmd.cmd("branch", "bar")
+        val execution = cmd.cmd("branch", "--delete", "bar")
+
+        assertEquals(0, execution.status)
+        assertEquals(
+            """
+            |Deleted branch bar (was ${oid.short})
+            |""".trimMargin(),
+            execution.stdout
+        )
+
+        val executionListBranches = cmd.cmd("branch")
+        assertEquals(0, executionListBranches.status)
+        assertEquals(
+            """
+            |  foo/qux
+            |* main
+            |  topic
+            |""".trimMargin(),
+            executionListBranches.stdout
+        )
+    }
+
+    @Test
+    fun `deleting branch should cleanup empty parent directories`() {
+        commitFile()
+        cmd.cmd("branch", "foo/qux/bar")
+        cmd.cmd("branch", "--delete", "foo/qux/bar")
+
+        val executionListBranches = cmd.cmd("branch")
+
+        assertEquals(0, executionListBranches.status)
+        assertEquals(
+            """
+            |* main
+            |""".trimMargin(),
+            executionListBranches.stdout
+        )
+        assertFalse(cmd.exists(".git/refs/heads/foo"))
+    }
+
+    @Test
+    fun `deleting unknown branch should show an error`() {
+        val execution = cmd.cmd("branch", "--delete", "foo")
+
+        assertEquals(1, execution.status)
+        assertEquals(
+            """
+            |error: branch 'foo' not found.
+            |""".trimMargin(),
+            execution.stderr
         )
     }
 }

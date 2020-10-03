@@ -13,11 +13,16 @@ class Branch(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
     private val branch: String? by argument(ArgType.String, fullName = "branch").optional()
     private val startPoint: String? by argument(ArgType.String, fullName = "start-point").optional()
     private val verbose: Boolean by option(ArgType.Boolean, shortName = "v").default(false)
+    private val delete: Boolean by option(ArgType.Boolean, shortName = "d").default(false)
+    private val force: Boolean by option(ArgType.Boolean, shortName = "f").default(false)
 
     override fun run() {
         when (val b = branch) {
             null -> listBranches()
-            else -> createBranch(b, startPoint)
+            else -> when (delete) {
+                true -> deleteBranch(b)
+                false -> createBranch(b, startPoint)
+            }
         }
     }
 
@@ -60,8 +65,7 @@ class Branch(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
         try {
             val startOid = startPoint
                 ?.let { Revision(repository, it).resolve() }
-                ?: repository.refs.readHead()
-                ?: throw IllegalStateException("Couldn't read HEAD")
+                ?: repository.refs.readHeadOrThrow()
 
             repository.refs.createBranch(branchName, startOid)
         } catch (e: Revision.InvalidObject) {
@@ -74,6 +78,20 @@ class Branch(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
         } catch (e: Refs.InvalidBranch) {
             ctx.stderr.println("fatal: ${e.message}")
             exitProcess(128)
+        }
+    }
+
+    private fun deleteBranch(branchName: String) {
+        if (force) {
+            return
+        }
+
+        try {
+            val oid = repository.refs.deleteBranch(branchName)
+            println("Deleted branch $branchName (was ${oid.short})")
+        } catch (e: Refs.InvalidBranch) {
+            ctx.stderr.println("error: ${e.message}")
+            exitProcess(1)
         }
     }
 }

@@ -150,4 +150,22 @@ class RefsTest(private val fileSystemProvider: FileSystemExtension.FileSystemPro
             refs.listBranches().map { it.shortName }
         )
     }
+
+    @Test
+    fun `delete branch`() {
+        val refs = Refs(git)
+        val oid = ObjectId("abcd")
+        refs.createBranch("topic", oid)
+        refs.deleteBranch("topic")
+        assertEquals(emptyList<Any>(), refs.listBranches())
+    }
+
+    @Test
+    fun `delete unknown branch`() {
+        val refs = Refs(git)
+        val oid = ObjectId("abcd")
+        refs.createBranch("topic", oid)
+        val e = assertThrows<Refs.InvalidBranch> { refs.deleteBranch("bla") }
+        assertEquals("branch 'bla' not found.", e.message)
+    }
 }

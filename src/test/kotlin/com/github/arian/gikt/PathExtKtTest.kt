@@ -38,6 +38,23 @@ internal class PathExtKtTest {
     }
 
     @Test
+    fun readBytes() {
+        val fs = MemoryFileSystemBuilder.newLinux().build()
+        val bytes = "foobar".toByteArray()
+        val path = fs.getPath("file.txt").write(bytes)
+        assertTrue(bytes.contentEquals(path.readBytes()))
+        path.delete()
+    }
+
+    @Test
+    fun readText() {
+        val fs = MemoryFileSystemBuilder.newLinux().build()
+        val path = fs.getPath("file.txt").write("hello")
+        assertEquals("hello", path.readText())
+        path.delete()
+    }
+
+    @Test
     fun makeExecutable() {
         val fs = MemoryFileSystemBuilder.newLinux().build()
         val dir = Files.createDirectory(fs.getPath("source-directory"))
