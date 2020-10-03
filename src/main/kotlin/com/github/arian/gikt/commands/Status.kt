@@ -8,14 +8,19 @@ import kotlinx.cli.default
 class Status(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
 
     private val porcelain: Boolean by option(ArgType.Boolean).default(false)
+    private val format: String
+        get() = when (porcelain) {
+            true -> "porcelain"
+            false -> "long"
+        }
 
     override fun run() {
         val scan = repository.index.loadForUpdate {
             repository.status().scan(this).also { writeUpdates() }
         }
 
-        when (porcelain) {
-            true -> printResults(scan)
+        when (format) {
+            "porcelain" -> printResults(scan)
             else -> printLongFormat(scan)
         }
 

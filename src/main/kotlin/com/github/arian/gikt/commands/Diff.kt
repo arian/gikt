@@ -16,7 +16,8 @@ import java.util.Objects
 
 class Diff(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
 
-    val cached: Boolean by option(ArgType.Boolean).default(false)
+    private val cached: Boolean by option(ArgType.Boolean).default(false)
+    private val staged: Boolean by option(ArgType.Boolean).default(false)
 
     private data class Target(
         val path: String,
@@ -37,7 +38,7 @@ class Diff(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
         val index = repository.index.load()
         val scan = repository.status().scan(index)
 
-        when (cached) {
+        when (cached || staged) {
             true -> diffHeadIndex(scan)
             else -> diffIndexWorkspace(scan)
         }

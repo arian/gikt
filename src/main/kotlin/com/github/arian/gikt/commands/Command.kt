@@ -5,7 +5,6 @@ import com.github.arian.gikt.commands.util.Style
 import com.github.arian.gikt.repository.Repository
 import kotlinx.cli.ArgParser
 import kotlinx.cli.ArgType
-import kotlinx.cli.Argument
 import kotlinx.cli.DefaultRequiredType
 import kotlinx.cli.SingleArgument
 import kotlinx.cli.SingleNullableOption
@@ -13,7 +12,6 @@ import java.io.InputStream
 import java.io.PrintStream
 import java.nio.file.Path
 import java.time.Clock
-import kotlin.reflect.KProperty
 
 typealias Environment = (key: String) -> String?
 typealias CommandFactory = (ctx: CommandContext, name: String) -> Command
@@ -58,10 +56,6 @@ abstract class AbstractCommand(val ctx: CommandContext, val name: String) : Comm
         description: String? = null,
     ): SingleArgument<T, DefaultRequiredType.Required> =
         parser.argument(type, fullName, description)
-
-    operator fun <T> Argument<T>.getValue(add: AbstractCommand, property: KProperty<*>): T {
-        return value
-    }
 
     internal abstract fun run()
 

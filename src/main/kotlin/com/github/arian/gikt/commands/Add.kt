@@ -19,7 +19,7 @@ private val LOCKED_INDEX_MESSAGE =
 
 class Add(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
 
-    val files: List<String> by argument(ArgType.String).vararg()
+    private val files: List<String> by argument(ArgType.String).vararg()
 
     override fun run() {
         kotlin

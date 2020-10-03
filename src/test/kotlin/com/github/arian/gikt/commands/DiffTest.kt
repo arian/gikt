@@ -151,5 +151,24 @@ class DiffTest {
                 """.trimMargin()
             )
         }
+
+        @Test
+        fun `with --staged argument`() {
+            cmd.writeFile("1.txt", "changed")
+            cmd.cmd("add", ".")
+
+            val execution = cmd.cmd("diff", "--staged")
+            assertDiffExecution(
+                """ |diff --git a/1.txt b/1.txt
+                    |index 43dd47e..21fb1ec 100644
+                    |--- a/1.txt
+                    |+++ b/1.txt
+                    |@@ -1,1 +1,1 @@
+                    |-one
+                    |+changed
+                """.trimMargin(),
+                execution
+            )
+        }
     }
 }
