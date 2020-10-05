@@ -83,6 +83,20 @@ abstract class AbstractCommand(val ctx: CommandContext, val name: String) : Comm
         } else {
             string
         }
+
+    /**
+     * This function checks if the [CommandContext.stdout] is still open and that it makes sense to write to it.
+     * This is really helpful if the program is piped into another program, which doesn't need more data.
+     *
+     * And example of such a program is `head`:
+     *
+     * ```
+     * $ gikt paged --times 10000000 | head
+     * $ gikt log | grep "commit msg"
+     * ```
+     */
+    fun shouldContinuePrinting(): Boolean =
+        !ctx.stdout.checkError()
 }
 
 class PagerCommand(
@@ -92,7 +106,7 @@ class PagerCommand(
 ) : Command {
     override fun execute(): CommandExecution =
         when (ctx.isatty) {
-            true -> Pager().start { pagerOut -> subCmdFactory(ctx.copy(stdout = pagerOut), name).execute() }
+            true -> Pager().start(ctx.dir) { pagerOut -> subCmdFactory(ctx.copy(stdout = pagerOut), name).execute() }
             false -> subCmdFactory(ctx, name).execute()
         }
 }
