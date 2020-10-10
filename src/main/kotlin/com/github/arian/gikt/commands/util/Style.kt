@@ -4,6 +4,7 @@ enum class Style(private val code: Int) {
     BOLD(1),
     RED(31),
     GREEN(32),
+    YELLOW(33),
     CYAN(36);
 
     private fun sgr(): String = "\u001B[${code}m"

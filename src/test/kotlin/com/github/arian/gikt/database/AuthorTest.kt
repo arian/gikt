@@ -22,6 +22,17 @@ class AuthorTest {
         assertEquals("arian <arian@example.com> 1565777302 +0200", author.toString())
     }
 
+    @Test
+    fun `readableTime format`() {
+        val zoneId = ZoneId.of("+0000")
+        val author = Author(
+            "arian",
+            "arian@example.com",
+            ZonedDateTime.now(Clock.fixed(Instant.parse("2018-02-11T15:14:00.00Z"), zoneId))
+        )
+        assertEquals("Sun Feb 11 15:14:00 2018 +0000", author.readableTime)
+    }
+
     @ParameterizedTest
     @CsvSource(
         value = [

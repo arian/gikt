@@ -7,11 +7,19 @@ import java.time.format.DateTimeFormatter
 import kotlin.math.max
 
 private val zoneFormatter = DateTimeFormatter.ofPattern("Z")
+private val readableTimeFormatter = DateTimeFormatter.ofPattern("EEE LLL dd HH:mm:ss yyyy Z")
 
-data class Author(private val name: String, private val email: String, private val now: ZonedDateTime) {
+data class Author(
+    val name: String,
+    val email: String,
+    private val now: ZonedDateTime
+) {
 
     val shortDate: String get() =
         DateTimeFormatter.ISO_LOCAL_DATE.format(now)
+
+    val readableTime: String get() =
+        readableTimeFormatter.format(now)
 
     override fun toString(): String {
         val timestamp = "${now.toEpochSecond()} ${zoneFormatter.format(now)}"

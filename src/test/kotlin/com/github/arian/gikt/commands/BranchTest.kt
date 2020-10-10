@@ -18,10 +18,7 @@ class BranchTest {
     }
 
     private fun commitFile(msg: String = "commit"): ObjectId {
-        cmd.touch("file-${count++}")
-        cmd.cmd("add", ".")
-        cmd.commit(msg)
-        return requireNotNull(cmd.repository.refs.readHead())
+        return cmd.commitFile("file-${count++}", msg = msg)
     }
 
     @Test

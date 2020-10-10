@@ -19,10 +19,7 @@ internal class CheckoutTest {
     }
 
     private fun commitFile(name: String, contents: String): ObjectId {
-        cmd.writeFile(name, contents)
-        cmd.cmd("add", ".")
-        cmd.commit("commit")
-        return requireNotNull(cmd.repository.refs.readHead())
+        return cmd.commitFile(name, contents)
     }
 
     private fun listWorkspaceFiles() =

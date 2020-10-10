@@ -1,5 +1,6 @@
 package com.github.arian.gikt.commands
 
+import com.github.arian.gikt.database.ObjectId
 import com.github.arian.gikt.delete
 import com.github.arian.gikt.deleteRecursively
 import com.github.arian.gikt.exists
@@ -92,6 +93,17 @@ class CommandHelper : Closeable {
             "GIT_AUTHOR_EMAIL" to "arian@example.com"
         )
         cmd("commit", env = env, stdin = msg)
+    }
+
+    fun commitFile(name: String, contents: String? = null, msg: String = "commit"): ObjectId {
+        if (contents == null) {
+            touch(name)
+        } else {
+            writeFile(name, contents)
+        }
+        cmd("add", ".")
+        commit(msg)
+        return requireNotNull(repository.refs.readHead())
     }
 
     fun cmd(

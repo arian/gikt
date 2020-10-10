@@ -121,6 +121,7 @@ object Commands {
         "diff" to withPager { ctx, name -> Diff(ctx, name) },
         "help" to cmd { ctx, name -> Help(ctx, name) },
         "init" to cmd { ctx, name -> Init(ctx, name) },
+        "log" to withPager { ctx, name -> Log(ctx, name) },
         "ls-files" to cmd { ctx, name -> ListFiles(ctx, name) },
         "paged" to withPager { ctx, name -> Paged(ctx, name) },
         "show-head" to cmd { ctx, name -> ShowHead(ctx, name) },
