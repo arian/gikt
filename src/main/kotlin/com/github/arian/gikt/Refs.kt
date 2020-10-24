@@ -5,6 +5,8 @@ import java.nio.file.DirectoryNotEmptyException
 import java.nio.file.NoSuchFileException
 import java.nio.file.Path
 
+typealias ReverseRefs = Map<ObjectId, List<Refs.Ref.SymRef>>
+
 class Refs(private val pathname: Path) {
 
     class InvalidBranch(msg: String) : Exception(msg)
@@ -171,6 +173,17 @@ class Refs(private val pathname: Path) {
                     listRefs(name)
                 } else {
                     listOf(Ref.SymRef(this, name))
+                }
+            }
+    }
+
+    fun reverseRefs(): ReverseRefs {
+        val allRefs = listOf(Ref.SymRef(this, headPath)) + listRefs(refsPath)
+        return allRefs
+            .fold(emptyMap()) { acc, ref ->
+                when (val oid = ref.oid) {
+                    null -> acc
+                    else -> acc + (oid to (acc.getOrDefault(oid, emptyList()) + ref))
                 }
             }
     }

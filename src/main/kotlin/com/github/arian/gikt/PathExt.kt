@@ -33,8 +33,14 @@ fun Path.parents(): List<Path> =
  * A list of the names of the parent directories.
  * `Path.of("a/b/c")` would return `listOf(Path.of("a"), Path.of("a/b"))`
  */
-fun Path.parentPaths(): List<Path> =
-    (1 until nameCount).map { subpath(0, it) }
+fun Path.parentPaths(): List<Path> {
+    fun helper(p: Path?): List<Path> =
+        when (p) {
+            null -> emptyList()
+            else -> listOf(p) + helper(p.parent)
+        }
+    return helper(parent).reversed()
+}
 
 fun Path.readBytes(): ByteArray = Files.readAllBytes(this)
 

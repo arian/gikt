@@ -2,6 +2,7 @@ package com.github.arian.gikt.commands
 
 import com.github.arian.gikt.commands.util.Pager
 import com.github.arian.gikt.commands.util.Style
+import com.github.arian.gikt.commands.util.format
 import com.github.arian.gikt.repository.Repository
 import kotlinx.cli.ArgParser
 import kotlinx.cli.ArgType
@@ -80,6 +81,13 @@ abstract class AbstractCommand(val ctx: CommandContext, val name: String) : Comm
     fun fmt(style: Style, string: String) =
         if (ctx.isatty) {
             style.format(string)
+        } else {
+            string
+        }
+
+    fun fmt(styles: List<Style>, string: String) =
+        if (ctx.isatty) {
+            styles.format(string)
         } else {
             string
         }

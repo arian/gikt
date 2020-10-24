@@ -30,10 +30,34 @@ internal class PathExtKtTest {
     }
 
     @Test
+    fun `parents from root`() {
+        assertEquals(
+            listOf("a", "b", "c", "d"),
+            Path.of("/a/b/c/d/e").parents().map { it.toString() }
+        )
+    }
+
+    @Test
     fun parentsPaths() {
         assertEquals(
             listOf("a", "a/b", "a/b/c", "a/b/c/d"),
             Path.of("a/b/c/d/e").parentPaths().map { it.toString() }
+        )
+    }
+
+    @Test
+    fun `parentsPaths from root`() {
+        assertEquals(
+            listOf("/", "/a", "/a/b", "/a/b/c", "/a/b/c/d"),
+            Path.of("/a/b/c/d/e").parentPaths().map { it.toString() }
+        )
+    }
+
+    @Test
+    fun `parentsPaths without parents`() {
+        assertEquals(
+            emptyList<String>(),
+            Path.of("e").parentPaths().map { it.toString() }
         )
     }
 

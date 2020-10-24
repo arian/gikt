@@ -94,4 +94,83 @@ internal class LogTest {
             execution.stdout
         )
     }
+
+    @Test
+    fun `decorate flag shows the branch names`() {
+        val commit1 = cmd.commitFile("a", msg = "first")
+        val commit2 = cmd.commitFile("a", msg = "second")
+        cmd.cmd("branch", "topic")
+        val commit3 = cmd.commitFile("a", msg = "third")
+        val commit4 = cmd.commitFile("a", msg = "fourth")
+        cmd.cmd("branch", "new-topic")
+
+        val execution = cmd.cmd("log", "--format", "oneline", "--decorate", "short")
+        assertEquals(0, execution.status)
+        assertFalse(execution.stdout.startsWith("\n"))
+        assertEquals(
+            """
+            |$commit4 (HEAD -> main, new-topic) fourth
+            |$commit3 third
+            |$commit2 (topic) second
+            |$commit1 first
+            |
+            """.trimMargin(),
+            execution.stdout
+        )
+    }
+
+    @Test
+    fun `decorate flag HEAD`() {
+        val commit1 = cmd.commitFile("a", msg = "first")
+        cmd.cmd("checkout", "HEAD")
+
+        val execution = cmd.cmd("log", "--format", "oneline", "--decorate", "short")
+        assertEquals(0, execution.status)
+        assertFalse(execution.stdout.startsWith("\n"))
+        assertEquals(
+            """
+            |$commit1 (HEAD, main) first
+            |
+            """.trimMargin(),
+            execution.stdout
+        )
+    }
+
+    @Test
+    fun `decorate flag full`() {
+        val commit1 = cmd.commitFile("a", msg = "first")
+        cmd.cmd("branch", "topic")
+        val commit2 = cmd.commitFile("a", msg = "second")
+
+        val execution = cmd.cmd("log", "--format", "oneline", "--decorate", "full")
+        assertEquals(0, execution.status)
+        assertFalse(execution.stdout.startsWith("\n"))
+        assertEquals(
+            """
+            |$commit2 (HEAD -> refs/heads/main) second
+            |$commit1 (refs/heads/topic) first
+            |
+            """.trimMargin(),
+            execution.stdout
+        )
+    }
+
+    @Test
+    fun `decorate flag medium format`() {
+        val commit = cmd.commitFile("a", msg = "first")
+        val execution = cmd.cmd("log", "--decorate", "short")
+        assertEquals(0, execution.status)
+        assertFalse(execution.stdout.startsWith("\n"))
+        assertEquals(
+            """
+            |commit $commit (HEAD -> main)
+            |Author: Arian <arian@example.com>
+            |Date:   Wed Aug 14 12:08:22 2019 +0200
+            |
+            |    first
+            |
+            """.trimMargin(),
+            execution.stdout
+        )
+    }
 }

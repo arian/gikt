@@ -17,7 +17,7 @@ class RefsTest(private val fileSystemProvider: FileSystemExtension.FileSystemPro
 
     @BeforeEach
     fun before() {
-        git = fileSystemProvider.get().getPath("gitk").mkdirp()
+        git = fileSystemProvider.get().getPath("/foo/bar/gitk").mkdirp()
     }
 
     @Test
@@ -148,6 +148,28 @@ class RefsTest(private val fileSystemProvider: FileSystemExtension.FileSystemPro
         assertEquals(
             listOf("bar", "foo/qux", "topic"),
             refs.listBranches().map { it.shortName }
+        )
+    }
+
+    @Test
+    fun `reverseRefs returns a map of oids to its associated references`() {
+        val refs = Refs(git)
+        val oid1 = ObjectId("abcd")
+        val oid2 = ObjectId("ef12")
+        refs.createBranch("topic", oid1)
+        refs.createBranch("bar", oid1)
+        refs.createBranch("foo/qux", oid2)
+
+        val head = ObjectId("def12def12def12def12def12def12def12def12")
+        git.resolve("HEAD").write(head.hex)
+
+        assertEquals(
+            mapOf(
+                oid1 to listOf("bar", "topic"),
+                oid2 to listOf("foo/qux"),
+                head to listOf("HEAD")
+            ),
+            refs.reverseRefs().mapValues { list -> list.value.map { it.shortName } }
         )
     }
 
