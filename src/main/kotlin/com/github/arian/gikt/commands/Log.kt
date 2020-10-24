@@ -143,7 +143,7 @@ class Log(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
                     ""
                 }
             }
-            Decoration.NO -> return ""
+            Decoration.NO -> ""
             Decoration.SHORT -> decorate(isShort = true)
             Decoration.FULL -> decorate(isShort = false)
         }
@@ -204,7 +204,8 @@ class Log(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
         ).default(Decoration.AUTO)
 
         private val noDecorate by option(
-            ArgType.Boolean
+            ArgType.Boolean,
+            fullName = "no-decorate"
         )
 
         val decorateOption

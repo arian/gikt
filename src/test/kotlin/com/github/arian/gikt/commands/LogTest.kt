@@ -160,7 +160,6 @@ internal class LogTest {
         val commit = cmd.commitFile("a", msg = "first")
         val execution = cmd.cmd("log", "--decorate", "short")
         assertEquals(0, execution.status)
-        assertFalse(execution.stdout.startsWith("\n"))
         assertEquals(
             """
             |commit $commit (HEAD -> main)
@@ -168,6 +167,20 @@ internal class LogTest {
             |Date:   Wed Aug 14 12:08:22 2019 +0200
             |
             |    first
+            |
+            """.trimMargin(),
+            execution.stdout
+        )
+    }
+
+    @Test
+    fun `no-decorate flag`() {
+        cmd.commitFile("a", msg = "first")
+        val execution = cmd.cmd("log", "--oneline", "--no-decorate")
+        assertEquals(0, execution.status)
+        assertEquals(
+            """
+            |c437776 first
             |
             """.trimMargin(),
             execution.stdout
