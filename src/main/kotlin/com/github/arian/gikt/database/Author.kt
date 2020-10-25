@@ -7,7 +7,7 @@ import java.time.format.DateTimeFormatter
 import kotlin.math.max
 
 private val zoneFormatter = DateTimeFormatter.ofPattern("Z")
-private val readableTimeFormatter = DateTimeFormatter.ofPattern("EEE LLL dd HH:mm:ss yyyy Z")
+private val readableTimeFormatter = DateTimeFormatter.ofPattern("EEE LLL d HH:mm:ss yyyy Z")
 
 data class Author(
     val name: String,
