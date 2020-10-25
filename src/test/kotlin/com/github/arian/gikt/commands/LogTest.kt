@@ -227,7 +227,7 @@ internal class LogTest {
             |index 0000000..2e65efe
             |--- a/file
             |+++ b/file
-            |@@ -1,0 +1,1 @@
+            |@@ -0,0 +1 @@
             |+a
             |
             """.trimMargin(),
@@ -240,7 +240,7 @@ internal class LogTest {
         val commit1 = cmd.commitFile("file", contents = "a", msg = "first")
         val commit2 = cmd.commitFile("file", contents = "b", msg = "second")
         cmd.writeFile("file", "c")
-        val commit3 = cmd.commitFile("other", contents = "third", msg = "third")
+        val commit3 = cmd.commitFile("other", contents = "third\nabc", msg = "third")
 
         val execution = cmd.cmd("log", "--patch", "--oneline")
 
@@ -257,11 +257,12 @@ internal class LogTest {
             |+c
             |diff --git a/other b/other
             |new file mode 100644
-            |index 0000000..6cbc878
+            |index 0000000..425b849
             |--- a/other
             |+++ b/other
-            |@@ -1,0 +1,1 @@
+            |@@ -0,0 +1,2 @@
             |+third
+            |+abc
             |${commit2.short} second
             |diff --git a/file b/file
             |index 2e65efe..63d8dbd 100644
@@ -276,7 +277,7 @@ internal class LogTest {
             |index 0000000..2e65efe
             |--- a/file
             |+++ b/file
-            |@@ -1,0 +1,1 @@
+            |@@ -0,0 +1 @@
             |+a
             |
             """.trimMargin(),

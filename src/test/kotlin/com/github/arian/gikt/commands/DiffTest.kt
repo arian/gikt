@@ -86,7 +86,7 @@ class DiffTest {
                     |index 43dd47e..0000000
                     |--- a/1.txt
                     |+++ /dev/null
-                    |@@ -1,1 +1,0 @@
+                    |@@ -1 +0,0 @@
                     |-one
                 """.trimMargin()
             )
@@ -134,7 +134,7 @@ class DiffTest {
                     |index 0000000..64c5e58
                     |--- a/2.txt
                     |+++ b/2.txt
-                    |@@ -1,0 +1,1 @@
+                    |@@ -0,0 +1 @@
                     |+two
                 """.trimMargin()
             )
@@ -151,7 +151,7 @@ class DiffTest {
                     |index 43dd47e..0000000
                     |--- a/1.txt
                     |+++ b/1.txt
-                    |@@ -1,1 +1,0 @@
+                    |@@ -1 +0,0 @@
                     |-one
                 """.trimMargin()
             )

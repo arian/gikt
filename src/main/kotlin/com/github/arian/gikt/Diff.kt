@@ -19,11 +19,28 @@ class Diff {
     data class Hunk(val aStart: Int, val bStart: Int, val edits: List<Edit>) {
 
         val header: String
-            get() {
-                val aOffset = "$aStart,${edits.count { it !is Edit.Ins }}"
-                val bOffset = "$bStart,${edits.count { it !is Edit.Del }}"
-                return "@@ -$aOffset +$bOffset @@"
-            }
+            get() =
+                when {
+                    aStart == 1 && edits.all { it is Edit.Ins } ->
+                        if (edits.size == 1) {
+                            "@@ -0,0 +1 @@"
+                        } else {
+                            "@@ -0,0 +1,${edits.size} @@"
+                        }
+
+                    aStart == 1 && edits.all { it is Edit.Del } ->
+                        if (edits.size == 1) {
+                            "@@ -1 +0,0 @@"
+                        } else {
+                            "@@ -1,${edits.size} +0,0 @@"
+                        }
+
+                    else -> {
+                        val aOffset = "$aStart,${edits.count { it !is Edit.Ins }}"
+                        val bOffset = "$bStart,${edits.count { it !is Edit.Del }}"
+                        "@@ -$aOffset +$bOffset @@"
+                    }
+                }
 
         companion object {
 
@@ -31,8 +48,8 @@ class Diff {
 
             fun build(edits: List<Edit>): List<Hunk> {
                 return filter(edits, emptyList(), 0)
-                    .map {
-                        val hunkEdits = edits.subList(it.start, it.end)
+                    .map { (start, end) ->
+                        val hunkEdits = edits.subList(start, end)
                         when (val edit = hunkEdits.first()) {
                             is Edit.Eql -> Hunk(edit.lineNumberA, edit.lineNumberB, hunkEdits)
                             // can only happen at start of the file (for example when the entire file has changed)

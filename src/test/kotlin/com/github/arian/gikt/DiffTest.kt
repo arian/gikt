@@ -64,11 +64,14 @@ class DiffTest {
         )
     }
 
-    private fun diffChars(a: String, b: String) =
-        Diff.myersDiff(
-            a.chunked(1).mapIndexed { i, s -> Diff.Line(i + 1, s) },
-            b.chunked(1).mapIndexed { i, s -> Diff.Line(i + 1, s) }
-        )
+    private fun lines(a: String?) =
+        when (a) {
+            null -> emptyList()
+            else -> a.chunked(1).mapIndexed { i, s -> Diff.Line(i + 1, s) }
+        }
+
+    private fun diffChars(a: String?, b: String?) =
+        Diff.myersDiff(lines(a), lines(b))
 
     @Test
     fun diff() {
@@ -145,6 +148,34 @@ class DiffTest {
 
             assertEquals("@@ -6,3 +9,4 @@", hunks[1].header)
             assertEquals(" A,  A,  A, +1", hunks[1].edits.fmt())
+        }
+
+        @Test
+        fun `null to one line`() {
+            val hunks = Diff.Hunk.build(diffChars(null, "1"))
+            assertEquals(1, hunks.size)
+            assertEquals("@@ -0,0 +1 @@", hunks[0].header)
+        }
+
+        @Test
+        fun `null to multiple lines`() {
+            val hunks = Diff.Hunk.build(diffChars(null, "12"))
+            assertEquals(1, hunks.size)
+            assertEquals("@@ -0,0 +1,2 @@", hunks[0].header)
+        }
+
+        @Test
+        fun `one line to null`() {
+            val hunks = Diff.Hunk.build(diffChars("1", null))
+            assertEquals(1, hunks.size)
+            assertEquals("@@ -1 +0,0 @@", hunks[0].header)
+        }
+
+        @Test
+        fun `multi line to null`() {
+            val hunks = Diff.Hunk.build(diffChars("12", null))
+            assertEquals(1, hunks.size)
+            assertEquals("@@ -1,2 +0,0 @@", hunks[0].header)
         }
     }
 }
