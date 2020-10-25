@@ -37,11 +37,7 @@ interface Command {
     fun execute(): CommandExecution
 }
 
-abstract class AbstractCommand(val ctx: CommandContext, val name: String) : Command {
-
-    internal val repository by lazy { Repository(ctx.dir) }
-
-    private val parser = ArgParser("gikt $name")
+class Cli(private val parser: ArgParser) {
 
     fun <T : Any> option(
         type: ArgType<T>,
@@ -57,6 +53,15 @@ abstract class AbstractCommand(val ctx: CommandContext, val name: String) : Comm
         description: String? = null,
     ): SingleArgument<T, DefaultRequiredType.Required> =
         parser.argument(type, fullName, description)
+}
+
+abstract class AbstractCommand(val ctx: CommandContext, val name: String) : Command {
+
+    internal val repository by lazy { Repository(ctx.dir) }
+
+    private val parser = ArgParser("gikt $name")
+
+    internal val cli = Cli(parser)
 
     internal abstract fun run()
 

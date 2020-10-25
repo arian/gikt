@@ -7,7 +7,7 @@ import kotlinx.cli.default
 
 class Status(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
 
-    private val porcelain: Boolean by option(ArgType.Boolean).default(false)
+    private val porcelain: Boolean by cli.option(ArgType.Boolean).default(false)
     private val format: String
         get() = when (porcelain) {
             true -> "porcelain"

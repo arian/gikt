@@ -79,7 +79,7 @@ class Database(private val pathname: Path) {
         }
     }
 
-    fun treeDiff(a: ObjectId, b: ObjectId): TreeDiffMap {
+    fun treeDiff(a: ObjectId?, b: ObjectId): TreeDiffMap {
         return TreeDiff(pathname.fileSystem, this).compareOids(a, b)
     }
 }

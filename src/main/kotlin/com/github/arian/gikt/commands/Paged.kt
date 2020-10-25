@@ -25,7 +25,7 @@ import java.time.Instant
  */
 class Paged(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
 
-    private val times by option(ArgType.Int).default(200)
+    private val times by cli.option(ArgType.Int).default(200)
 
     override fun run() {
         var x = 0

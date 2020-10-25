@@ -18,6 +18,7 @@ internal class LogTest {
     fun `linear commits should log it in a-chronological order`() {
         val first = cmd.commitFile("a", msg = "first")
         val second = cmd.commitFile("b", msg = "second")
+        val third = cmd.commitFile("c", msg = "third")
 
         val execution = cmd.cmd("log")
 
@@ -25,6 +26,12 @@ internal class LogTest {
         assertFalse(execution.stdout.startsWith("\n"))
         assertEquals(
             """
+            |commit $third
+            |Author: Arian <arian@example.com>
+            |Date:   Wed Aug 14 12:08:22 2019 +0200
+            |
+            |    third
+            |
             |commit $second
             |Author: Arian <arian@example.com>
             |Date:   Wed Aug 14 12:08:22 2019 +0200
@@ -181,6 +188,96 @@ internal class LogTest {
         assertEquals(
             """
             |c437776 first
+            |
+            """.trimMargin(),
+            execution.stdout
+        )
+    }
+
+    @Test
+    fun `patch flag`() {
+        val commit1 = cmd.commitFile("file", contents = "a", msg = "first")
+        val commit2 = cmd.commitFile("file", contents = "b", msg = "second")
+        val execution = cmd.cmd("log", "--patch")
+        assertEquals(0, execution.status)
+        assertEquals(
+            """
+            |commit $commit2
+            |Author: Arian <arian@example.com>
+            |Date:   Wed Aug 14 12:08:22 2019 +0200
+            |
+            |    second
+            |
+            |diff --git a/file b/file
+            |index 2e65efe..63d8dbd 100644
+            |--- a/file
+            |+++ b/file
+            |@@ -1,1 +1,1 @@
+            |-a
+            |+b
+            |
+            |commit $commit1
+            |Author: Arian <arian@example.com>
+            |Date:   Wed Aug 14 12:08:22 2019 +0200
+            |
+            |    first
+            |
+            |diff --git a/file b/file
+            |new file mode 100644
+            |index 0000000..2e65efe
+            |--- a/file
+            |+++ b/file
+            |@@ -1,0 +1,1 @@
+            |+a
+            |
+            """.trimMargin(),
+            execution.stdout
+        )
+    }
+
+    @Test
+    fun `patch flag oneline`() {
+        val commit1 = cmd.commitFile("file", contents = "a", msg = "first")
+        val commit2 = cmd.commitFile("file", contents = "b", msg = "second")
+        cmd.writeFile("file", "c")
+        val commit3 = cmd.commitFile("other", contents = "third", msg = "third")
+
+        val execution = cmd.cmd("log", "--patch", "--oneline")
+
+        assertEquals(0, execution.status)
+        assertEquals(
+            """
+            |${commit3.short} third
+            |diff --git a/file b/file
+            |index 63d8dbd..3410062 100644
+            |--- a/file
+            |+++ b/file
+            |@@ -1,1 +1,1 @@
+            |-b
+            |+c
+            |diff --git a/other b/other
+            |new file mode 100644
+            |index 0000000..6cbc878
+            |--- a/other
+            |+++ b/other
+            |@@ -1,0 +1,1 @@
+            |+third
+            |${commit2.short} second
+            |diff --git a/file b/file
+            |index 2e65efe..63d8dbd 100644
+            |--- a/file
+            |+++ b/file
+            |@@ -1,1 +1,1 @@
+            |-a
+            |+b
+            |${commit1.short} first
+            |diff --git a/file b/file
+            |new file mode 100644
+            |index 0000000..2e65efe
+            |--- a/file
+            |+++ b/file
+            |@@ -1,0 +1,1 @@
+            |+a
             |
             """.trimMargin(),
             execution.stdout

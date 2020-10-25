@@ -21,13 +21,13 @@ class DiffTest {
         assertEquals(0, execution.status)
     }
 
+    private fun assertDiff(expected: String, vararg args: String) {
+        val execution = cmd.cmd("diff", *args)
+        assertDiffExecution(expected, execution)
+    }
+
     @Nested
     inner class WorkspaceChanges {
-
-        private fun assertDiff(expected: String) {
-            val execution = cmd.cmd("diff")
-            assertDiffExecution(expected, execution)
-        }
 
         @Test
         fun `show diff header of changed file contents`() {
@@ -91,14 +91,19 @@ class DiffTest {
                 """.trimMargin()
             )
         }
+
+        @Test
+        fun `show diff no-patch`() {
+            cmd.writeFile("1.txt", "changed")
+            assertDiff(expected = "", "--no-patch")
+        }
     }
 
     @Nested
     inner class CachedChanges {
 
-        private fun assertDiffCached(expected: String) {
-            val execution = cmd.cmd("diff", "--cached")
-            assertDiffExecution(expected, execution)
+        private fun assertDiffCached(expected: String, vararg args: String) {
+            assertDiff(expected, "--cached", *args)
         }
 
         @Test
@@ -169,6 +174,13 @@ class DiffTest {
                 """.trimMargin(),
                 execution
             )
+        }
+
+        @Test
+        fun `show diff no-patch`() {
+            cmd.writeFile("1.txt", "changed")
+            cmd.cmd("add", ".")
+            assertDiffCached(expected = "", "--no-patch")
         }
     }
 }

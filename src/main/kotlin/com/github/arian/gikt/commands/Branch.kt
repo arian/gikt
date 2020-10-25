@@ -10,11 +10,11 @@ import kotlinx.cli.optional
 
 class Branch(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
 
-    private val branch: String? by argument(ArgType.String, fullName = "branch").optional()
-    private val startPoint: String? by argument(ArgType.String, fullName = "start-point").optional()
-    private val verbose: Boolean by option(ArgType.Boolean, shortName = "v").default(false)
-    private val delete: Boolean by option(ArgType.Boolean, shortName = "d").default(false)
-    private val force: Boolean by option(ArgType.Boolean, shortName = "f").default(false)
+    private val branch: String? by cli.argument(ArgType.String, fullName = "branch").optional()
+    private val startPoint: String? by cli.argument(ArgType.String, fullName = "start-point").optional()
+    private val verbose: Boolean by cli.option(ArgType.Boolean, shortName = "v").default(false)
+    private val delete: Boolean by cli.option(ArgType.Boolean, shortName = "d").default(false)
+    private val force: Boolean by cli.option(ArgType.Boolean, shortName = "f").default(false)
 
     override fun run() {
         when (val b = branch) {

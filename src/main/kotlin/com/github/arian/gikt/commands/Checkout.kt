@@ -11,7 +11,7 @@ import kotlinx.cli.optional
 
 class Checkout(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
 
-    private val target: String by argument(ArgType.String, fullName = "path").optional().default("HEAD")
+    private val target: String by cli.argument(ArgType.String, fullName = "path").optional().default("HEAD")
 
     override fun run() {
         checkout(target)
