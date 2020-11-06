@@ -3,13 +3,10 @@ package com.github.arian.gikt.commands
 import com.github.arian.gikt.database.Commit
 import com.github.arian.gikt.database.ObjectId
 import com.github.arian.gikt.database.Tree
-import com.github.arian.gikt.repository.Repository
 import java.nio.file.Path
 
 class ShowHead(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
     override fun run() {
-        val repository = Repository(ctx.dir)
-
         val head = repository.refs.readHead()
         if (head != null) {
             val rel = repository.relativeRoot

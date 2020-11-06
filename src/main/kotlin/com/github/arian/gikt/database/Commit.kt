@@ -2,6 +2,7 @@ package com.github.arian.gikt.database
 
 import com.github.arian.gikt.utf8
 import java.io.ByteArrayInputStream
+import java.time.ZonedDateTime
 import java.util.Scanner
 
 data class Commit(
@@ -25,8 +26,13 @@ data class Commit(
         """.trimMargin().toByteArray(Charsets.UTF_8)
     }
 
-    val title: String get() =
-        message.utf8().lineSequence().first()
+    val title: String
+        get() =
+            message.utf8().lineSequence().first()
+
+    val date: ZonedDateTime
+        get() =
+            author.date
 
     override fun equals(other: Any?): Boolean =
         super.equals(other)

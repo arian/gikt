@@ -12,17 +12,17 @@ private val readableTimeFormatter = DateTimeFormatter.ofPattern("EEE LLL d HH:mm
 data class Author(
     val name: String,
     val email: String,
-    private val now: ZonedDateTime
+    val date: ZonedDateTime
 ) {
 
     val shortDate: String get() =
-        DateTimeFormatter.ISO_LOCAL_DATE.format(now)
+        DateTimeFormatter.ISO_LOCAL_DATE.format(date)
 
     val readableTime: String get() =
-        readableTimeFormatter.format(now)
+        readableTimeFormatter.format(date)
 
     override fun toString(): String {
-        val timestamp = "${now.toEpochSecond()} ${zoneFormatter.format(now)}"
+        val timestamp = "${date.toEpochSecond()} ${zoneFormatter.format(date)}"
         return "$name <$email> $timestamp"
     }
 
@@ -45,7 +45,7 @@ data class Author(
             val timestamp = Instant.ofEpochSecond(time[0].toLong())
             val zone = ZoneId.of(time[1])
             val now = ZonedDateTime.ofInstant(timestamp, zone)
-            return Author(name = name, email = email, now = now)
+            return Author(name = name, email = email, date = now)
         }
     }
 }
