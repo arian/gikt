@@ -45,10 +45,12 @@ class Revision(private val repo: Repository, private val expression: String) {
             RegexOption.COMMENTS
         )
 
+        const val HEAD = "HEAD"
+
         private val PARENT = Regex("^(.+)\\^$")
         private val ANCESTOR = Regex("^(.+)~(\\d+)$")
         private val REF_ALIASES = mapOf(
-            "@" to "HEAD"
+            "@" to HEAD
         )
 
         fun validRef(revision: String) = !INVALID_NAME.containsMatchIn(revision)

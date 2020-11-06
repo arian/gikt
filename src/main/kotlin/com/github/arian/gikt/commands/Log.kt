@@ -1,6 +1,8 @@
 package com.github.arian.gikt.commands
 
 import com.github.arian.gikt.Refs.Ref.SymRef
+import com.github.arian.gikt.RevList
+import com.github.arian.gikt.Revision
 import com.github.arian.gikt.commands.util.PrintDiff
 import com.github.arian.gikt.commands.util.Style
 import com.github.arian.gikt.database.Commit
@@ -10,6 +12,7 @@ import com.github.arian.gikt.database.TreeEntry
 import com.github.arian.gikt.utf8
 import kotlinx.cli.ArgType
 import kotlinx.cli.default
+import kotlinx.cli.optional
 
 class Log(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
 
@@ -20,8 +23,10 @@ class Log(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
     override fun run() {
         val reverseRefs = repository.refs.reverseRefs()
         val currentRef = repository.refs.currentRef()
+        val start = Revision(repository, options.start)
 
-        eachCommit()
+        RevList(repository, start)
+            .commits()
             .takeWhile { shouldContinuePrinting() }
             .forEachIndexed { index, commit ->
                 println(
@@ -34,14 +39,6 @@ class Log(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
                 )
             }
     }
-
-    private fun eachCommit(): Sequence<Commit> {
-        val head = repository.refs.readHead()
-        return generateSequence(loadCommit(head)) { loadCommit(it.parent) }
-    }
-
-    private fun loadCommit(oid: ObjectId?): Commit? =
-        oid?.let { repository.loadObject(it) as? Commit }
 
     private fun showCommit(
         refs: List<SymRef>,
@@ -195,6 +192,15 @@ class Log(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
     }
 
     private class Options(cli: Cli) {
+
+        val start by cli
+            .argument(
+                ArgType.String,
+                fullName = "start"
+            )
+            .optional()
+            .default(Revision.HEAD)
+
         private val abbrevCommitOption by cli.option(
             ArgType.Boolean,
             fullName = "abbrev-commit",

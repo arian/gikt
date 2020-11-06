@@ -284,4 +284,25 @@ internal class LogTest {
             execution.stdout
         )
     }
+
+    @Test
+    fun `start argument`() {
+        val commit1 = cmd.commitFile("a", msg = "first")
+        val commit2 = cmd.commitFile("a", msg = "second")
+        val commit3 = cmd.commitFile("a", msg = "third")
+        cmd.commitFile("a", msg = "fourth")
+        cmd.commitFile("a", msg = "fifth")
+
+        val execution = cmd.cmd("log", "--format", "oneline", "HEAD^^")
+        assertEquals(0, execution.status)
+        assertEquals(
+            """
+            |$commit3 third
+            |$commit2 second
+            |$commit1 first
+            |
+            """.trimMargin(),
+            execution.stdout
+        )
+    }
 }
