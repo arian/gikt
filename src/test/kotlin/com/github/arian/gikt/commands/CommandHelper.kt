@@ -87,22 +87,27 @@ class CommandHelper : Closeable {
         cmd("init")
     }
 
-    fun commit(msg: String) {
+    fun commit(msg: String, timeOffset: Long = 0) {
         val env = mapOf(
             "GIT_AUTHOR_NAME" to "Arian",
             "GIT_AUTHOR_EMAIL" to "arian@example.com"
         )
-        cmd("commit", env = env, stdin = msg)
+        cmd("commit", env = env, stdin = msg, timeOffset = timeOffset)
     }
 
-    fun commitFile(name: String, contents: String? = null, msg: String = "commit"): ObjectId {
+    fun commitFile(
+        name: String,
+        contents: String? = null,
+        msg: String = "commit",
+        timeOffset: Long = 0
+    ): ObjectId {
         if (contents == null) {
             touch(name)
         } else {
             writeFile(name, contents)
         }
         cmd("add", ".")
-        commit(msg)
+        commit(msg, timeOffset = timeOffset)
         return requireNotNull(repository.refs.readHead())
     }
 
@@ -110,16 +115,16 @@ class CommandHelper : Closeable {
         name: String,
         vararg args: String,
         env: Map<String, String> = emptyMap(),
-        stdin: String? = null
+        stdin: String? = null,
+        timeOffset: Long = 0L
     ): CommandTestExecution {
 
         val stderr = ByteArrayOutputStream()
         val stdout = ByteArrayOutputStream()
 
-        val clock = Clock.fixed(
-            Instant.parse("2019-08-14T10:08:22.00Z"),
-            ZoneId.of("Europe/Amsterdam")
-        )
+        val zoneId = ZoneId.of("Europe/Amsterdam")
+        val now = Instant.parse("2019-08-14T10:08:22.00Z")
+        val clock = Clock.fixed(now.plusSeconds(timeOffset), zoneId)
 
         val ctx = CommandContext(
             dir = root,

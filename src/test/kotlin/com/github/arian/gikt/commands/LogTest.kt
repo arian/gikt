@@ -305,4 +305,28 @@ internal class LogTest {
             execution.stdout
         )
     }
+
+    @Test
+    fun `multiple start arguments`() {
+        val commit1 = cmd.commitFile("a", msg = "first", timeOffset = 0)
+        val commit2 = cmd.commitFile("a", msg = "second", timeOffset = 1)
+        cmd.cmd("branch", "main")
+        cmd.cmd("checkout", "main^")
+        val commit3 = cmd.commitFile("a", msg = "third", timeOffset = 2)
+        val commit4 = cmd.commitFile("a", msg = "fourth", timeOffset = 3)
+        cmd.cmd("branch", "topic")
+
+        val execution = cmd.cmd("log", "--format", "oneline", "main", "topic")
+        assertEquals(0, execution.status)
+        assertEquals(
+            """
+            |$commit4 fourth
+            |$commit3 third
+            |$commit2 second
+            |$commit1 first
+            |
+            """.trimMargin(),
+            execution.stdout
+        )
+    }
 }

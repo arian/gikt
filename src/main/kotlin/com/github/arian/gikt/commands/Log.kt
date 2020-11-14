@@ -13,6 +13,7 @@ import com.github.arian.gikt.utf8
 import kotlinx.cli.ArgType
 import kotlinx.cli.default
 import kotlinx.cli.optional
+import kotlinx.cli.vararg
 
 class Log(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
 
@@ -23,7 +24,7 @@ class Log(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
     override fun run() {
         val reverseRefs = repository.refs.reverseRefs()
         val currentRef = repository.refs.currentRef()
-        val start = Revision(repository, options.start)
+        val start = options.start.map { Revision(repository, it) }
 
         RevList(repository, start)
             .commits()
@@ -199,7 +200,7 @@ class Log(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
                 fullName = "start"
             )
             .optional()
-            .default(Revision.HEAD)
+            .vararg()
 
         private val abbrevCommitOption by cli.option(
             ArgType.Boolean,

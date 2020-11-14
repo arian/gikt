@@ -11,16 +11,31 @@ class RevList(
 
     constructor(repository: Repository, rev: Revision) : this(repository, listOf(rev))
 
-    private data class RevState(
-        val oid: ObjectId,
+    private inner class RevState(
+        val commit: Commit,
         val commits: Map<ObjectId, Commit> = emptyMap(),
         val flags: Flags = Flags(),
-        val queue: List<ObjectId> = emptyList()
+        val queue: LinkedHashSet<Commit> = LinkedHashSet()
     ) {
-        fun addCommit(commit: Commit): RevState = copy(
-            oid = commit.oid,
-            commits = commits + (commit.oid to commit)
-        )
+
+        fun step(): RevState? {
+            val head = queue.firstOrNull() ?: return null
+            val oid = head.oid
+
+            val tail = queue.drop(1).map { it.oid }
+
+            val queue = (tail + listOfNotNull(head.parent))
+                .filterNot { flags.marked(it, Flag.SEEN) }
+                .mapNotNull { commits[it] ?: repository.loadObject(it) as? Commit }
+                .toSortedByDateDescendingSet()
+
+            return RevState(
+                commit = head,
+                queue = queue,
+                commits = (commits + queue.associateBy { it.oid }) - oid,
+                flags = flags.mark(oid, Flag.SEEN)
+            )
+        }
     }
 
     private data class Flags(private val flags: Map<ObjectId, Set<Flag>> = emptyMap()) {
@@ -38,23 +53,24 @@ class RevList(
         SEEN
     }
 
+    private fun Collection<Commit>.toSortedByDateDescendingSet() =
+        LinkedHashSet(sortedByDescending { it.date }.distinctBy { it.oid })
+
+    private fun initialState(revs: List<Revision>): RevState? {
+        val revsCommits = revs.mapNotNull { repository.loadObject(it.resolve()) as? Commit }
+        return RevState(
+            commit = revsCommits.firstOrNull() ?: return null,
+            commits = revsCommits.associateBy { it.oid },
+            queue = revsCommits.toSortedByDateDescendingSet()
+        )
+    }
+
     fun commits(): Sequence<Commit> {
-        return revs
-            .asSequence()
-            .flatMap { handleRevision(it) }
-            .mapNotNull { it.commits[it.oid] }
-    }
+        val initial = initialState(revs)
+            ?: initialState(listOf(Revision(repository, Revision.HEAD)))
 
-    private fun handleRevision(rev: Revision): Sequence<RevState> {
-        val head = rev.resolve()
-        val initial = loadCommit(RevState(oid = head), head)
-        return generateSequence(initial) {
-            loadCommit(it, it.commits[it.oid]?.parent)
-        }
+        return generateSequence(initial) { it.step() }
+            .drop(1)
+            .map { it.commit }
     }
-
-    private fun loadCommit(state: RevState, oid: ObjectId?): RevState? =
-        oid
-            ?.let { repository.loadObject(it) as? Commit }
-            ?.let { state.addCommit(it) }
 }
