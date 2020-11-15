@@ -19,7 +19,7 @@ class Checkout(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
 
     private fun checkout(target: String): Nothing {
         try {
-            val targetOid = Revision(repository, target).resolve()
+            val targetOid = Revision(repository, target).oid
 
             val currentRef = repository.refs.currentRef()
             val currentOid = currentRef.oid

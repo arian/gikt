@@ -219,14 +219,14 @@ class RevisionTest {
             val root = commit()
             repo.database.store(root)
             git.resolve("HEAD").write(root.oid.hex)
-            val oid = Revision(repo, "HEAD").resolve()
+            val oid = Revision(repo, "HEAD").oid
             assertEquals(root.oid, oid)
         }
 
         @Test
         fun `Revision not found exception`() {
             val repo = Repository(ws)
-            val e = assertThrows<Revision.InvalidObject> { Revision(repo, "HEAD").resolve() }
+            val e = assertThrows<Revision.InvalidObject> { Revision(repo, "HEAD").oid }
             assertEquals("Not a valid object name: 'HEAD'", e.message)
         }
 
@@ -235,7 +235,7 @@ class RevisionTest {
             val repo = Repository(ws)
             val first = commit()
             repo.database.store(first)
-            val oid = Revision(repo, first.oid.hex).resolve()
+            val oid = Revision(repo, first.oid.hex).oid
             assertEquals(first.oid.hex, oid.hex)
         }
 
@@ -244,7 +244,7 @@ class RevisionTest {
             val repo = Repository(ws)
             val first = commit()
             repo.database.store(first)
-            val oid = Revision(repo, first.oid.short).resolve()
+            val oid = Revision(repo, first.oid.short).oid
             assertEquals(first.oid.hex, oid.hex)
         }
 
@@ -261,7 +261,7 @@ class RevisionTest {
                 git.resolve("objects/27/ca1a59bdd14378635f344ef3bb0563eda962aa")
             )
 
-            val e = assertThrows<Revision.InvalidObject> { Revision(repo, first.oid.short).resolve() }
+            val e = assertThrows<Revision.InvalidObject> { Revision(repo, first.oid.short).oid }
             assertEquals(1, e.errors.size)
         }
     }

@@ -8,12 +8,13 @@ class Revision(private val repo: Repository, private val expression: String) {
 
     private val query by lazy { parse(expression) }
 
-    fun resolve(): ObjectId =
+    val oid: ObjectId by lazy {
         when (val res = query?.resolve(repo)) {
             is Res.Commit -> res.commit.oid
             is Res.Errors -> throw InvalidObject("Not a valid object name: '$expression'", res.errors)
             else -> throw InvalidObject("Not a valid object name: '$expression'")
         }
+    }
 
     class InvalidObject(msg: String, val errors: List<HintedError> = emptyList()) : Exception(msg)
     class HintedError(msg: String, val hints: List<String> = emptyList()) : Exception(msg)

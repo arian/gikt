@@ -64,7 +64,7 @@ class Branch(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
     private fun createBranch(branchName: String, startPoint: String?) {
         try {
             val startOid = startPoint
-                ?.let { Revision(repository, it).resolve() }
+                ?.let { Revision(repository, it).oid }
                 ?: repository.refs.readHeadOrThrow()
 
             repository.refs.createBranch(branchName, startOid)

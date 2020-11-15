@@ -119,7 +119,7 @@ class RevList(
     private fun initialState(startPoints: List<StartPoint>): RevState? {
         val revsCommits = startPoints
             .map { it.revision }
-            .mapNotNull { repository.loadObject(it.resolve()) as? Commit }
+            .mapNotNull { repository.loadObject(it.oid) as? Commit }
 
         val initial = RevState(
             repository = repository,
@@ -132,7 +132,7 @@ class RevList(
             if (rev.interesting) {
                 state
             } else {
-                val commit = state.commits[rev.revision.resolve()] ?: return@fold state
+                val commit = state.commits[rev.revision.oid] ?: return@fold state
                 state.markUninteresting(commit)
             }
         }
