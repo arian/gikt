@@ -329,4 +329,25 @@ internal class LogTest {
             execution.stdout
         )
     }
+
+    @Test
+    fun `excluded branch`() {
+        cmd.commitFile("a", msg = "first", timeOffset = 0)
+        val commit2 = cmd.commitFile("a", msg = "second", timeOffset = 1)
+        cmd.cmd("branch", "main")
+        cmd.cmd("checkout", "main^")
+        cmd.commitFile("a", msg = "third", timeOffset = 2)
+        cmd.commitFile("a", msg = "fourth", timeOffset = 3)
+        cmd.cmd("branch", "topic")
+
+        val execution = cmd.cmd("log", "--format", "oneline", "..main")
+        assertEquals(0, execution.status)
+        assertEquals(
+            """
+            |$commit2 second
+            |
+            """.trimMargin(),
+            execution.stdout
+        )
+    }
 }

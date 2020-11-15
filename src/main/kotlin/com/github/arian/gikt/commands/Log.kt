@@ -2,7 +2,6 @@ package com.github.arian.gikt.commands
 
 import com.github.arian.gikt.Refs.Ref.SymRef
 import com.github.arian.gikt.RevList
-import com.github.arian.gikt.Revision
 import com.github.arian.gikt.commands.util.PrintDiff
 import com.github.arian.gikt.commands.util.Style
 import com.github.arian.gikt.database.Commit
@@ -24,7 +23,7 @@ class Log(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
     override fun run() {
         val reverseRefs = repository.refs.reverseRefs()
         val currentRef = repository.refs.currentRef()
-        val start = options.start.map { Revision(repository, it) }
+        val start = RevList.parseStartPoints(repository, options.start)
 
         RevList(repository, start)
             .commits()
