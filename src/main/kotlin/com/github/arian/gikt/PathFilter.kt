@@ -1,13 +1,19 @@
 package com.github.arian.gikt
 
+import com.github.arian.gikt.database.TreeEntry
 import java.nio.file.Path
 
 class PathFilter private constructor(private val routes: Trie) {
 
-    fun eachEntry(entries: List<Path>): Sequence<Path> =
+    fun each(entries: List<Path>): Sequence<Path> =
         entries
             .asSequence()
             .filter { routes.matched || routes.children.containsKey(it) }
+
+    fun eachEntry(entries: List<TreeEntry>): Sequence<TreeEntry> =
+        entries
+            .asSequence()
+            .filter { routes.matched || routes.children.containsKey(it.key) }
 
     fun join(name: Path): PathFilter =
         when (routes.matched) {
@@ -50,7 +56,18 @@ class PathFilter private constructor(private val routes: Trie) {
     }
 
     companion object {
-        fun build(paths: List<Path>) =
-            PathFilter(Trie.fromPaths(paths))
+
+        /**
+         * Matches any path
+         */
+        val any: PathFilter =
+            PathFilter(Trie.matchedNode)
+
+        fun build(paths: List<Path>): PathFilter =
+            if (paths.isEmpty()) {
+                any
+            } else {
+                PathFilter(Trie.fromPaths(paths))
+            }
     }
 }

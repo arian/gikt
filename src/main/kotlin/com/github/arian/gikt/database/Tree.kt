@@ -12,12 +12,14 @@ interface TreeEntry {
     val name: Path
     val mode: Mode
     val oid: ObjectId
+    val key: Path
 
     fun isTree() = mode == Mode.TREE
 }
 
 data class ParsedTreeEntry(
     override val name: Path,
+    override val key: Path,
     override val mode: Mode,
     override val oid: ObjectId
 ) : TreeEntry
@@ -35,6 +37,7 @@ class Tree(
         return String(data, Charset.defaultCharset())
     }
 
+    override val key: Path by lazy { name.parent?.let { name.relativeTo(it) } ?: name }
     override val type = "tree"
     override val mode = Mode.TREE
     override val data: ByteArray by lazy {
@@ -81,7 +84,7 @@ class Tree(
         entries
             .values
             .sortedBy { it.name }
-            .map { it.name.relativeTo(name).toString() }
+            .map { it.key.toString() }
 
     operator fun get(key: String): TreeEntry? =
         entries[name.resolve(key).relativeTo(name).toString()]
@@ -110,14 +113,16 @@ class Tree(
                 pos += modeBytes.size + 1
 
                 val nameBytes = bytes.drop(pos).takeWhile { it != 0.toByte() }.toByteArray()
-                val name = nameBytes.utf8()
+                val nameString = nameBytes.utf8()
                 pos += nameBytes.size + 1
 
                 val oid = bytes.sliceArray(pos until pos + 20)
                 pos += 20
 
-                entries[name] = ParsedTreeEntry(
-                    name = prefix.resolve(name),
+                val name = prefix.resolve(nameString)
+                entries[nameString] = ParsedTreeEntry(
+                    name = name,
+                    key = name.relativeTo(prefix),
                     mode = mode,
                     oid = ObjectId(oid)
                 )

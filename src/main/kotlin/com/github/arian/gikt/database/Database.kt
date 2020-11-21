@@ -1,5 +1,6 @@
 package com.github.arian.gikt.database
 
+import com.github.arian.gikt.PathFilter
 import com.github.arian.gikt.deflateInto
 import com.github.arian.gikt.exists
 import com.github.arian.gikt.inflate
@@ -79,7 +80,7 @@ class Database(private val pathname: Path) {
         }
     }
 
-    fun treeDiff(a: ObjectId?, b: ObjectId): TreeDiffMap {
-        return TreeDiff(pathname.fileSystem, this).compareOids(a, b)
+    fun treeDiff(a: ObjectId?, b: ObjectId, filter: PathFilter = PathFilter.any): TreeDiffMap {
+        return TreeDiff(pathname.fileSystem, this).compareOids(a, b, filter = filter)
     }
 }

@@ -1,5 +1,6 @@
 package com.github.arian.gikt.database
 
+import com.github.arian.gikt.PathFilter
 import com.github.arian.gikt.Workspace
 import com.github.arian.gikt.mkdirp
 import com.github.arian.gikt.readBytes
@@ -110,6 +111,31 @@ internal class TreeDiffTest(private val fileSystemProvider: FileSystemExtension.
             mapOf(
                 "a/b.txt" to ("e69de29bb2d1d6434b8b29ae775ad8c2e48c5391" to null),
                 "a/b/c.txt" to (null to "2e65efe2a145dda7ee51d1741299f848e5bf752e")
+            ),
+            diff
+        )
+    }
+
+    @Test
+    fun `filter paths should only contain the matching changes`() {
+        val treeA = treeWithFiles("a/b/c/x.txt" to "1", "a/b/c/d/y.txt" to "1", "foo/d/x.txt" to "1")
+        val treeB = treeWithFiles("a/b/c/x.txt" to "2", "a/b/c/d/z.txt" to "2", "foo/d/x.txt" to "2")
+
+        val filter = PathFilter.build(
+            listOf(
+                rootPath.resolve("a/b/c/x.txt").relativeTo(rootPath),
+                rootPath.resolve("a/b/c/d").relativeTo(rootPath)
+            )
+        )
+
+        val diff = treeDiff.compareOids(treeA.oid, treeB.oid, filter).toStrings()
+
+        assertEquals(
+            mapOf(
+                "a/b/c/x.txt" to
+                    ("56a6051ca2b02b04ef92d5150c9ef600403cb1de" to "d8263ee9860594d2806b0dfd1bfd17528b0ba2a4"),
+                "a/b/c/d/y.txt" to ("56a6051ca2b02b04ef92d5150c9ef600403cb1de" to null),
+                "a/b/c/d/z.txt" to (null to "d8263ee9860594d2806b0dfd1bfd17528b0ba2a4")
             ),
             diff
         )

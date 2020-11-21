@@ -25,15 +25,22 @@ class Log(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
         val currentRef = repository.refs.currentRef()
         val start = RevList.parseStartPoints(repository, options.start)
 
-        RevList(repository, start)
-            .commits()
+        val revList = RevList(repository, start)
+
+        val items = if (printDiffOptions.patch) {
+            revList.itemsWithPatches()
+        } else {
+            revList.items()
+        }
+
+        items
             .takeWhile { shouldContinuePrinting() }
-            .forEachIndexed { index, commit ->
+            .forEachIndexed { index, revListItem ->
                 println(
                     showCommit(
-                        refs = reverseRefs.getOrDefault(commit.oid, emptyList()),
+                        refs = reverseRefs.getOrDefault(revListItem.oid, emptyList()),
                         currentRef = currentRef,
-                        commit,
+                        revListItem,
                         index
                     )
                 )
@@ -43,12 +50,12 @@ class Log(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
     private fun showCommit(
         refs: List<SymRef>,
         currentRef: SymRef,
-        commit: Commit,
+        item: RevList.Item,
         index: Int
     ): String {
         return when (options.format) {
-            Format.MEDIUM -> formatMedium(refs, currentRef, commit, index) + showPatch(commit, blankline = "\n")
-            Format.ONELINE -> formatOneline(refs, currentRef, commit) + showPatch(commit)
+            Format.MEDIUM -> formatMedium(refs, currentRef, item.commit, index) + showPatch(item, blankline = "\n")
+            Format.ONELINE -> formatOneline(refs, currentRef, item.commit) + showPatch(item)
         }
     }
 
@@ -151,8 +158,8 @@ class Log(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
         }
     }
 
-    private fun showPatch(commit: Commit, blankline: String = ""): String {
-        if (!printDiffOptions.patch) {
+    private fun showPatch(item: RevList.Item, blankline: String = ""): String {
+        if (item !is RevList.Item.CommitWithPatch) {
             return ""
         }
 
@@ -162,7 +169,7 @@ class Log(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
         fun fromRepo(entry: TreeEntry): PrintDiff.Target =
             PrintDiff.Target.fromHead(entry, repository.loadObject(entry.oid))
 
-        val diffTree = repository.database.treeDiff(commit.parent, commit.oid)
+        val diffTree = item.patch
 
         val diff = diffTree
             .keys

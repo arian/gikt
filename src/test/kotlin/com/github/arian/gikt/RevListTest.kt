@@ -1,12 +1,16 @@
 package com.github.arian.gikt
 
 import com.github.arian.gikt.database.Author
+import com.github.arian.gikt.database.Blob
 import com.github.arian.gikt.database.Commit
+import com.github.arian.gikt.database.Entry
 import com.github.arian.gikt.database.ObjectId
+import com.github.arian.gikt.database.Tree
 import com.github.arian.gikt.database.toHexString
 import com.github.arian.gikt.repository.Repository
 import com.github.marschall.memoryfilesystem.MemoryFileSystemBuilder
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import java.time.Clock
 import java.time.Instant
@@ -25,7 +29,7 @@ internal class RevListTest {
         repo: Repository,
         parent: ObjectId? = null,
         timeOffset: Long = 0L,
-        tree: String? = null
+        tree: ObjectId
     ): Commit {
         val zoneId = ZoneId.of("Europe/Amsterdam")
 
@@ -37,13 +41,23 @@ internal class RevListTest {
             parent = parent,
             message = "commit".toByteArray(),
             author = Author("arian", "arian@example.com", time),
-            tree = ObjectId(
-                tree?.toByteArray()?.sha1()?.toHexString()
-                    ?: "abc12def12def12def12def12def12def12def12"
-            )
+            tree = tree
         )
         repo.database.store(commit)
         return commit
+    }
+
+    private fun commit(
+        repo: Repository,
+        parent: ObjectId? = null,
+        timeOffset: Long = 0L,
+        tree: String? = null
+    ): Commit {
+        val treeOid = ObjectId(
+            tree?.toByteArray()?.sha1()?.toHexString()
+                ?: "abc12def12def12def12def12def12def12def12"
+        )
+        return commit(repo, parent, timeOffset, treeOid)
     }
 
     private fun assertRevList(expected: List<ObjectId>, actual: List<Commit>) =
@@ -252,5 +266,85 @@ internal class RevListTest {
         )
         val log = revList.commits().toList()
         assertRevList(listOf(commitD, commitC), log)
+    }
+
+    data class RepoWithCommits(
+        val repository: Repository,
+        val commitA: ObjectId,
+        val commitB: ObjectId,
+        val commitC: ObjectId,
+    )
+
+    @Nested
+    inner class FilterPaths {
+
+        private fun treeWithFiles(repository: Repository, vararg files: Pair<String, String>): Tree {
+            val rootPath = repository.resolvePath("")
+            val entries = files.map { (name, content) ->
+                val blob = Blob(content.toByteArray())
+                repository.database.store(blob)
+                Entry(repository.resolvePath(name).relativeTo(rootPath), FileStat(), blob.oid)
+            }
+
+            val tree = Tree.build(rootPath, entries)
+            tree.traverse { repository.database.store(it) }
+            repository.database.store(tree)
+
+            return tree
+        }
+
+        private fun repoWithTrees(): RepoWithCommits {
+            val repository = repository()
+            val treeA = treeWithFiles(repository, "a.txt" to "", "foo/bar/b.txt" to "b")
+            val commitA = commit(repository, tree = treeA.oid).oid
+
+            val treeB = treeWithFiles(repository, "a.txt" to "b", "foo/bar/b.txt" to "b")
+            val commitB = commit(repository, parent = commitA, tree = treeB.oid).oid
+
+            val treeC = treeWithFiles(repository, "a.txt" to "b", "foo/bar/b.txt" to "c")
+            val commitC = commit(repository, parent = commitB, tree = treeC.oid).oid
+
+            repository.resolvePath("a.txt").write("")
+            repository.resolvePath("foo/bar/b.txt").run {
+                parent.mkdirp()
+                write("")
+            }
+
+            return RepoWithCommits(repository, commitA, commitB, commitC)
+        }
+
+        @Test
+        fun `filter commits with a path`() {
+            val repo = repoWithTrees()
+
+            val revList = RevList(
+                repo.repository,
+                RevList.parseStartPoints(
+                    repo.repository,
+                    listOf("a.txt", repo.commitC.hex)
+                )
+            )
+
+            val log = revList.commits().toList()
+
+            assertRevList(listOf(repo.commitB, repo.commitA), log)
+        }
+
+        @Test
+        fun `filter commits with a directory name that matches everything in the path`() {
+            val repo = repoWithTrees()
+
+            val revList = RevList(
+                repo.repository,
+                RevList.parseStartPoints(
+                    repo.repository,
+                    listOf("foo", repo.commitC.hex)
+                )
+            )
+
+            val log = revList.commits().toList()
+
+            assertRevList(listOf(repo.commitC, repo.commitA), log)
+        }
     }
 }

@@ -350,4 +350,65 @@ internal class LogTest {
             execution.stdout
         )
     }
+
+    @Test
+    fun `filter paths`() {
+        val commit1 = cmd.commitFile("a", contents = "1", msg = "first")
+        val commit2 = cmd.commitFile("a", contents = "2", msg = "second")
+        cmd.commitFile("b", msg = "third")
+        val commit4 = cmd.commitFile("a", contents = "3", msg = "fourth")
+
+        val execution = cmd.cmd("log", "--oneline", "$commit4", "a")
+        assertEquals(0, execution.status)
+        assertEquals(
+            """
+            |${commit4.short} fourth
+            |${commit2.short} second
+            |${commit1.short} first
+            |
+            """.trimMargin(),
+            execution.stdout
+        )
+    }
+
+    @Test
+    fun `filter paths and show diffs`() {
+        cmd.commitFile("a", contents = "1", msg = "first")
+        cmd.commitFile("a", contents = "2", msg = "second")
+        cmd.commitFile("b", msg = "third")
+        val commit4 = cmd.commitFile("a", contents = "3", msg = "fourth")
+
+        val execution = cmd.cmd("log", "--oneline", "-p", "$commit4", "a")
+        assertEquals(0, execution.status)
+        assertEquals(
+            """
+            |1944a87 fourth
+            |diff --git a/a b/a
+            |index d8263ee..e440e5c 100644
+            |--- a/a
+            |+++ b/a
+            |@@ -1,1 +1,1 @@
+            |-2
+            |+3
+            |3708e4a second
+            |diff --git a/a b/a
+            |index 56a6051..d8263ee 100644
+            |--- a/a
+            |+++ b/a
+            |@@ -1,1 +1,1 @@
+            |-1
+            |+2
+            |5b81e73 first
+            |diff --git a/a b/a
+            |new file mode 100644
+            |index 0000000..56a6051
+            |--- a/a
+            |+++ b/a
+            |@@ -0,0 +1 @@
+            |+1
+            |
+            """.trimMargin(),
+            execution.stdout
+        )
+    }
 }

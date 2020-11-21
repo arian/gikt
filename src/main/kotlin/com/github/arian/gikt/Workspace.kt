@@ -75,8 +75,14 @@ class Workspace(private val rootPath: Path) {
 
     fun statFile(it: Path): FileStat = statFileChecked(absolutePath(it))
 
-    fun statFileOrNull(it: Path): FileStat? = try {
-        absolutePath(it).stat()
+    fun statFileOrNull(it: String): FileStat? =
+        statFileOrNullImpl(absolutePath(it))
+
+    fun statFileOrNull(it: Path): FileStat? =
+        statFileOrNullImpl(absolutePath(it))
+
+    private fun statFileOrNullImpl(it: Path): FileStat? = try {
+        it.stat()
     } catch (e: IOException) {
         null
     }

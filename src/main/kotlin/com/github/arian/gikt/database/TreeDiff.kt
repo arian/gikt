@@ -1,5 +1,6 @@
 package com.github.arian.gikt.database
 
+import com.github.arian.gikt.PathFilter
 import com.github.arian.gikt.relativeTo
 import java.nio.file.FileSystem
 import java.nio.file.Path
@@ -29,19 +30,25 @@ typealias TreeDiffMap = Map<Path, TreeDiffMapValue>
 
 class TreeDiff(private val fs: FileSystem, private val database: Database) {
 
-    private class TreeGetter(val tree: Tree?) {
+    private class TreeGetter(val tree: Tree?, val filter: PathFilter) {
         operator fun get(key: Path): TreeEntry? = tree?.get(key.relativeTo(tree.name))
-        fun list(): List<TreeEntry> = tree?.list() ?: emptyList()
+        fun entries(): Sequence<TreeEntry> = filter.eachEntry(tree?.list() ?: emptyList())
         fun contains(name: Path) = get(name) != null
     }
 
-    fun compareOids(a: ObjectId?, b: ObjectId?, prefix: Path? = null): TreeDiffMap {
+    fun compareOids(
+        a: ObjectId?,
+        b: ObjectId?,
+        filter: PathFilter = PathFilter.any,
+        prefix: Path? = null,
+    ): TreeDiffMap {
         if (a == b) {
             return emptyMap()
         }
 
-        val treeA = TreeGetter(a?.let { loadTree(it, prefix) })
-        val treeB = TreeGetter(b?.let { loadTree(it, prefix) })
+        val treeA = TreeGetter(a?.let { loadTree(it, prefix) }, filter)
+        val treeB = TreeGetter(b?.let { loadTree(it, prefix) }, filter)
+
         return compareTrees(treeA, treeB)
     }
 
@@ -57,11 +64,11 @@ class TreeDiff(private val fs: FileSystem, private val database: Database) {
         return detectDeletions(a, b) + detectAdditions(a, b)
     }
 
-    private fun treeDiffs(entry: TreeEntry, other: TreeEntry?): TreeDiffMap {
+    private fun treeDiffs(entry: TreeEntry, other: TreeEntry?, filter: PathFilter): TreeDiffMap {
         val a = entry.treeOid
         val b = other.treeOid
         return if (a != null || b != null) {
-            compareOids(a, b, entry.name)
+            compareOids(a, b, filter.join(entry.key), entry.name)
         } else {
             emptyMap()
         }
@@ -82,21 +89,21 @@ class TreeDiff(private val fs: FileSystem, private val database: Database) {
     }
 
     private fun detectDeletions(a: TreeGetter, b: TreeGetter): TreeDiffMap {
-        return a.list()
+        return a.entries()
             .combineMaps { entry ->
                 when (val other = b[entry.name]) {
                     entry -> emptyMap()
-                    else -> treeDiffs(entry, other) + blobDiffs(entry, other)
+                    else -> treeDiffs(entry, other, a.filter) + blobDiffs(entry, other)
                 }
             }
     }
 
     private fun detectAdditions(a: TreeGetter, b: TreeGetter): TreeDiffMap {
-        return b.list()
+        return b.entries()
             .combineMaps { entry ->
                 when {
                     a.contains(entry.name) -> emptyMap()
-                    entry.isTree() -> compareOids(null, entry.oid, entry.name)
+                    entry.isTree() -> compareOids(null, entry.oid, b.filter.join(entry.key), entry.name)
                     else -> mapOf(entry.name to TreeDiffMapValue.Addition(entry))
                 }
             }
@@ -108,6 +115,6 @@ class TreeDiff(private val fs: FileSystem, private val database: Database) {
     private val TreeEntry?.blobOid: ObjectId?
         get() = this?.takeUnless { it.isTree() }?.oid
 
-    private fun <E, K, V> List<E>.combineMaps(block: (E) -> Map<K, V>): Map<K, V> =
+    private fun <E, K, V> Sequence<E>.combineMaps(block: (E) -> Map<K, V>): Map<K, V> =
         fold(emptyMap()) { acc, map -> acc + block(map) }
 }
