@@ -30,6 +30,13 @@ fun Path.parents(): List<Path> =
     (0 until nameCount - 1).map { getName(it) }
 
 /**
+ * A list of the names of the parent directories and the filename.
+ * `Path.of("a/b/c")` would return `listOf(Path.of("a"), Path.of("b"), Path.of("c")`
+ */
+fun Path.split(): List<Path> =
+    (0 until nameCount).map { getName(it) }
+
+/**
  * A list of the names of the parent directories.
  * `Path.of("a/b/c")` would return `listOf(Path.of("a"), Path.of("a/b"))`
  */

@@ -38,6 +38,30 @@ internal class PathExtKtTest {
     }
 
     @Test
+    fun split() {
+        assertEquals(
+            listOf("a", "b", "c", "d", "e"),
+            Path.of("a/b/c/d/e").split().map { it.toString() }
+        )
+    }
+
+    @Test
+    fun `split for empty path`() {
+        assertEquals(
+            listOf(""),
+            Path.of("").split().map { it.toString() }
+        )
+    }
+
+    @Test
+    fun `split for root path`() {
+        assertEquals(
+            emptyList<String>(),
+            Path.of("/").split().map { it.toString() }
+        )
+    }
+
+    @Test
     fun parentsPaths() {
         assertEquals(
             listOf("a", "a/b", "a/b/c", "a/b/c/d"),
