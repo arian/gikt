@@ -21,7 +21,7 @@ internal class RevListTest {
 
     private fun repository(): Repository {
         val fs = MemoryFileSystemBuilder.newLinux().build()
-        val ws = fs.getPath("gitk-objects").mkdirp()
+        val ws = fs.getPath("/gitk-objects").mkdirp()
         return Repository(ws)
     }
 
@@ -347,6 +347,26 @@ internal class RevListTest {
             val revList = RevList(repo.repository, RevList.parseStartPoints(repo.repository, listOf("a.txt")))
             val log = revList.commits().toList()
             assertRevList(listOf(repo.commitB, repo.commitA), log)
+        }
+
+        @Test
+        fun `filter commits with relative root path from HEAD`() {
+            val repo = RepoWithCommits()
+            val revList = RevList(repo.repository, RevList.parseStartPoints(repo.repository, listOf(".")))
+            val log = revList.commits().toList()
+            assertRevList(listOf(repo.commitC, repo.commitB, repo.commitA), log)
+        }
+
+        @Test
+        fun `filter commits with absolute root path from HEAD`() {
+            val repo = RepoWithCommits()
+            val rootPath = repo.repository.resolvePath("")
+            val revList = RevList(
+                repo.repository,
+                RevList.parseStartPoints(repo.repository, listOf(rootPath.toString()))
+            )
+            val log = revList.commits().toList()
+            assertRevList(listOf(repo.commitC, repo.commitB, repo.commitA), log)
         }
     }
 }

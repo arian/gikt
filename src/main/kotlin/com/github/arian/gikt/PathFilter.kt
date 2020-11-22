@@ -45,7 +45,7 @@ class PathFilter private constructor(private val routes: Trie) {
             }
 
             fun fromPaths(paths: List<Path>): Trie {
-                val split = paths.map { it.split() }
+                val split = paths.filterNot { it.toString().isEmpty() }.map { it.split() }
                 return if (split.isEmpty() || split.any { it.isEmpty() }) {
                     matchedNode
                 } else {

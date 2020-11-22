@@ -221,7 +221,7 @@ class RevList(
         private fun parsePath(repository: Repository, rev: String): List<StartPoint>? =
             repository.resolvePath(rev)
                 .takeIf { repository.workspace.statFileOrNull(rev) != null }
-                ?.let { listOf(StartPoint.Prune(repository.relativePath(it))) }
+                ?.let { listOf(StartPoint.Prune(repository.relativePath(it.normalize()))) }
 
         private fun parseRange(repository: Repository, rev: String): List<StartPoint>? =
             RANGE.find(rev)?.destructured?.let { (uninteresting, interesting) ->
