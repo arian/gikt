@@ -411,4 +411,24 @@ internal class LogTest {
             execution.stdout
         )
     }
+
+    @Test
+    fun `filter paths from HEAD`() {
+        val commit1 = cmd.commitFile("a", contents = "1", msg = "first")
+        val commit2 = cmd.commitFile("a", contents = "2", msg = "second")
+        cmd.commitFile("b", msg = "third")
+        val commit4 = cmd.commitFile("a", contents = "3", msg = "fourth")
+
+        val execution = cmd.cmd("log", "--oneline", "a")
+        assertEquals(0, execution.status)
+        assertEquals(
+            """
+            |${commit4.short} fourth
+            |${commit2.short} second
+            |${commit1.short} first
+            |
+            """.trimMargin(),
+            execution.stdout
+        )
+    }
 }

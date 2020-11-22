@@ -149,11 +149,16 @@ class RevList(
         TREESAME,
     }
 
-    private fun initialState(startPoints: List<StartPoint>): RevState? {
-        val revsCommits = startPoints
+    private fun startCommits(startPoints: List<StartPoint>): List<Commit> {
+        return startPoints
             .filterIsInstance<StartPoint.Rev>()
             .map { it.revision }
             .mapNotNull { repository.loadObject(it.oid) as? Commit }
+    }
+
+    private fun initialState(startPoints: List<StartPoint>): RevState? {
+        val revsCommits = startCommits(startPoints).takeIf { it.isNotEmpty() }
+            ?: startCommits(parseStartPoints(repository, listOf(Revision.HEAD)))
 
         val filter = startPoints
             .filterIsInstance<StartPoint.Prune>()
@@ -181,9 +186,7 @@ class RevList(
     }
 
     private fun revListStates(): Sequence<RevState> {
-        val initial = initialState(revs)
-            ?: initialState(parseStartPoints(repository, listOf(Revision.HEAD)))
-            ?: return emptySequence()
+        val initial = initialState(revs) ?: return emptySequence()
 
         return initial
             .readAndFlagAllUninterested()

@@ -268,15 +268,25 @@ internal class RevListTest {
         assertRevList(listOf(commitD, commitC), log)
     }
 
-    data class RepoWithCommits(
-        val repository: Repository,
-        val commitA: ObjectId,
-        val commitB: ObjectId,
-        val commitC: ObjectId,
-    )
+    private inner class RepoWithCommits(val repository: Repository = repository()) {
 
-    @Nested
-    inner class FilterPaths {
+        val treeA = treeWithFiles(repository, "a.txt" to "", "foo/bar/b.txt" to "b")
+        val commitA = commit(repository, tree = treeA.oid).oid
+
+        val treeB = treeWithFiles(repository, "a.txt" to "b", "foo/bar/b.txt" to "b")
+        val commitB = commit(repository, parent = commitA, tree = treeB.oid).oid
+
+        val treeC = treeWithFiles(repository, "a.txt" to "b", "foo/bar/b.txt" to "c")
+        val commitC = commit(repository, parent = commitB, tree = treeC.oid).oid
+
+        init {
+            repository.resolvePath("a.txt").write("")
+            repository.resolvePath("foo/bar/b.txt").run {
+                parent.mkdirp()
+                write("")
+            }
+            repository.refs.updateHead(commitC)
+        }
 
         private fun treeWithFiles(repository: Repository, vararg files: Pair<String, String>): Tree {
             val rootPath = repository.resolvePath("")
@@ -292,30 +302,14 @@ internal class RevListTest {
 
             return tree
         }
+    }
 
-        private fun repoWithTrees(): RepoWithCommits {
-            val repository = repository()
-            val treeA = treeWithFiles(repository, "a.txt" to "", "foo/bar/b.txt" to "b")
-            val commitA = commit(repository, tree = treeA.oid).oid
-
-            val treeB = treeWithFiles(repository, "a.txt" to "b", "foo/bar/b.txt" to "b")
-            val commitB = commit(repository, parent = commitA, tree = treeB.oid).oid
-
-            val treeC = treeWithFiles(repository, "a.txt" to "b", "foo/bar/b.txt" to "c")
-            val commitC = commit(repository, parent = commitB, tree = treeC.oid).oid
-
-            repository.resolvePath("a.txt").write("")
-            repository.resolvePath("foo/bar/b.txt").run {
-                parent.mkdirp()
-                write("")
-            }
-
-            return RepoWithCommits(repository, commitA, commitB, commitC)
-        }
+    @Nested
+    inner class FilterPaths {
 
         @Test
         fun `filter commits with a path`() {
-            val repo = repoWithTrees()
+            val repo = RepoWithCommits()
 
             val revList = RevList(
                 repo.repository,
@@ -332,7 +326,7 @@ internal class RevListTest {
 
         @Test
         fun `filter commits with a directory name that matches everything in the path`() {
-            val repo = repoWithTrees()
+            val repo = RepoWithCommits()
 
             val revList = RevList(
                 repo.repository,
@@ -345,6 +339,14 @@ internal class RevListTest {
             val log = revList.commits().toList()
 
             assertRevList(listOf(repo.commitC, repo.commitA), log)
+        }
+
+        @Test
+        fun `filter commits from HEAD`() {
+            val repo = RepoWithCommits()
+            val revList = RevList(repo.repository, RevList.parseStartPoints(repo.repository, listOf("a.txt")))
+            val log = revList.commits().toList()
+            assertRevList(listOf(repo.commitB, repo.commitA), log)
         }
     }
 }
