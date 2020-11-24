@@ -119,7 +119,7 @@ class PagerCommand(
 ) : Command {
     override fun execute(): CommandExecution =
         when (ctx.isatty) {
-            true -> Pager().start(ctx.dir) { pagerOut -> subCmdFactory(ctx.copy(stdout = pagerOut), name).execute() }
+            true -> Pager(ctx.env).start(ctx.dir) { pagerOut -> subCmdFactory(ctx.copy(stdout = pagerOut), name).execute() }
             false -> subCmdFactory(ctx, name).execute()
         }
 }
