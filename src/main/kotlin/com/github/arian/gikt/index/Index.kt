@@ -4,11 +4,11 @@ import com.github.arian.gikt.FileStat
 import com.github.arian.gikt.Lockfile
 import com.github.arian.gikt.Mode
 import com.github.arian.gikt.database.ObjectId
+import com.github.arian.gikt.inputStream
 import com.github.arian.gikt.parentPaths
 import com.github.arian.gikt.utf8
 import java.io.Closeable
 import java.nio.ByteBuffer
-import java.nio.file.Files
 import java.nio.file.NoSuchFileException
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
@@ -151,7 +151,7 @@ class ChecksumWriter(private val writer: (ByteArray) -> Unit) {
 class ChecksumReader(file: Path) : Closeable {
 
     private val digest = MessageDigest.getInstance("SHA-1")
-    private val inputStream = Files.newInputStream(file, StandardOpenOption.READ)
+    private val inputStream = file.inputStream(StandardOpenOption.READ)
 
     fun read(size: Int): ByteArray {
         val data: ByteArray = inputStream.readNBytes(size)

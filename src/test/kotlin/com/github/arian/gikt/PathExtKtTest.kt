@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.nio.file.AccessDeniedException
 import java.nio.file.AccessMode
-import java.nio.file.Files
 import java.nio.file.Path
 
 internal class PathExtKtTest {
@@ -105,25 +104,25 @@ internal class PathExtKtTest {
     @Test
     fun makeExecutable() {
         val fs = MemoryFileSystemBuilder.newLinux().build()
-        val dir = Files.createDirectory(fs.getPath("source-directory"))
+        val dir = fs.getPath("source-directory").createDirectory()
         val path = dir.resolve("file.txt").touch()
         path.makeExecutable()
-        assertTrue(Files.isExecutable(path))
+        assertTrue(path.isExecutable())
     }
 
     @Test
     fun makeUnExecutable() {
         val fs = MemoryFileSystemBuilder.newLinux().build()
-        val dir = Files.createDirectory(fs.getPath("source-directory"))
+        val dir = fs.getPath("source-directory").createDirectory()
         val path = dir.resolve("file.txt").touch()
         path.makeUnExecutable()
-        assertFalse(Files.isExecutable(path))
+        assertFalse(path.isExecutable())
     }
 
     @Test
     fun makeUnreadable() {
         val fs = MemoryFileSystemBuilder.newLinux().build()
-        val dir = Files.createDirectory(fs.getPath("source-directory"))
+        val dir = fs.getPath("source-directory").createDirectory()
         val path = dir.resolve("file.txt").touch()
         path.makeUnreadable()
         assertThrows<AccessDeniedException> {

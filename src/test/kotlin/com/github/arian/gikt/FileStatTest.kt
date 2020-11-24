@@ -19,7 +19,7 @@ class FileStatTest {
 
     @BeforeEach
     fun before() {
-        path = Files.createTempDirectory("gikt")
+        path = createTempDirectory("gikt")
     }
 
     @AfterEach

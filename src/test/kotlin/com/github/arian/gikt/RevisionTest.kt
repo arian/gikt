@@ -18,7 +18,6 @@ import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
-import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Clock
 import java.time.Instant
@@ -256,10 +255,8 @@ class RevisionTest {
             repo.database.store(first)
             assertEquals(ObjectId("27ca1a59bdd14378635f344ef3bb0563eda96242"), first.oid)
 
-            Files.copy(
-                git.resolve("objects/27/ca1a59bdd14378635f344ef3bb0563eda96242"),
-                git.resolve("objects/27/ca1a59bdd14378635f344ef3bb0563eda962aa")
-            )
+            git.resolve("objects/27/ca1a59bdd14378635f344ef3bb0563eda96242")
+                .copyTo(git.resolve("objects/27/ca1a59bdd14378635f344ef3bb0563eda962aa"))
 
             val e = assertThrows<Revision.InvalidObject> { Revision(repo, first.oid.short).oid }
             assertEquals(1, e.errors.size)

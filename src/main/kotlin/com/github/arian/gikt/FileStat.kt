@@ -1,6 +1,5 @@
 package com.github.arian.gikt
 
-import java.nio.file.Files
 import java.nio.file.Path
 
 data class FileStat(
@@ -21,16 +20,11 @@ data class FileStat(
 
     companion object {
         fun of(path: Path): FileStat {
-            val attrs: Map<String, Any> = try {
-                Files.readAttributes(path, "unix:dev,ino,uid,gid,mode")
-            } catch (e: Exception) {
-                emptyMap()
-            }
-
-            val ctime = Files.getLastModifiedTime(path).toInstant()
+            val attrs: Map<String, Any?> = path.readUnixAttributes()
+            val ctime = path.getLastModifiedInstant()
 
             val views = path.fileSystem.supportedFileAttributeViews()
-            val mode = when (views.contains("posix") && Files.isExecutable(path)) {
+            val mode = when (views.contains("posix") && path.isExecutable()) {
                 true -> 509 // 0775
                 false -> 420 // 0644
             }
@@ -45,10 +39,10 @@ data class FileStat(
                 ino = attrs["ino"] as? Long ?: 0L,
                 uid = attrs["uid"] as? Int ?: 1000,
                 gid = attrs["gid"] as? Int ?: 1000,
-                size = Files.size(path),
+                size = path.fileSize(),
                 // bitmask all executable bits. 73 is 0111 in octal
                 executable = mode and 73 == 73,
-                directory = Files.isDirectory(path)
+                directory = path.isDirectory()
             )
         }
     }

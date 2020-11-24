@@ -8,7 +8,6 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
-import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -20,8 +19,7 @@ class LockfileTest(private val fileSystemProvider: FileSystemExtension.FileSyste
     @BeforeEach
     fun before() {
         val fs = fileSystemProvider.get()
-        path = fs.getPath("temp")
-        Files.createDirectory(path)
+        path = fs.getPath("temp").createDirectory()
     }
 
     @Test

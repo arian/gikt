@@ -4,7 +4,6 @@ import java.io.Closeable
 import java.io.OutputStream
 import java.nio.file.AccessDeniedException
 import java.nio.file.FileAlreadyExistsException
-import java.nio.file.Files
 import java.nio.file.NoSuchFileException
 import java.nio.file.OpenOption
 import java.nio.file.Path
@@ -56,7 +55,7 @@ class Lockfile(private val path: Path) {
                 StandardOpenOption.WRITE,
                 StandardOpenOption.CREATE_NEW
             )
-            stream = Files.newOutputStream(lockPath, *flags)
+            stream = lockPath.outputStream(*flags)
         }
 
         override fun close() {
@@ -80,7 +79,7 @@ class Lockfile(private val path: Path) {
 
         fun commit() {
             raiseOnStaleLock {
-                Files.move(lockfile.lockPath, lockfile.path, StandardCopyOption.REPLACE_EXISTING)
+                lockfile.lockPath.renameTo(lockfile.path, StandardCopyOption.REPLACE_EXISTING)
                 done = true
             }
         }

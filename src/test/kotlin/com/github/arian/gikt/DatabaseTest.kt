@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
-import java.nio.file.Files
 import java.nio.file.Path
 
 @ExtendWith(FileSystemExtension::class)
@@ -32,11 +31,11 @@ class DatabaseTest(private val fileSystemProvider: FileSystemExtension.FileSyste
         val obj = db.resolve("b6/fc4c620b67d95f953a5c1c1230aaab5db5a1b0")
         assertTrue(obj.exists())
 
-        val timeBefore = Files.getLastModifiedTime(obj)
+        val timeBefore = obj.getLastModifiedInstant()
 
         database.store(blob)
 
-        val timeAfter = Files.getLastModifiedTime(obj)
+        val timeAfter = obj.getLastModifiedInstant()
 
         assertEquals(timeBefore, timeAfter, "should not have modified the file")
     }

@@ -3,6 +3,7 @@ package com.github.arian.gikt.index
 import com.github.arian.gikt.FileStat
 import com.github.arian.gikt.Lockfile
 import com.github.arian.gikt.Mode
+import com.github.arian.gikt.createDirectory
 import com.github.arian.gikt.database.Blob
 import com.github.arian.gikt.database.ObjectId
 import com.github.arian.gikt.database.toHexString
@@ -22,7 +23,6 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
-import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -37,8 +37,7 @@ class IndexTest(private val fileSystemProvider: FileSystemExtension.FileSystemPr
     @BeforeEach
     fun before() {
         val fs = fileSystemProvider.get()
-        workspacePath = fs.getPath("/gitk-index")
-        Files.createDirectory(workspacePath)
+        workspacePath = fs.getPath("/gitk-index").createDirectory()
     }
 
     private fun rel(path: String) = workspacePath.resolve(path).relativeTo(workspacePath)

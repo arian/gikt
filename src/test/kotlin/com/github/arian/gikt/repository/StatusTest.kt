@@ -1,11 +1,11 @@
 package com.github.arian.gikt.repository
 
+import com.github.arian.gikt.createDirectory
 import com.github.arian.gikt.test.FileSystemExtension
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
-import java.nio.file.Files
 import java.nio.file.Path
 
 @ExtendWith(FileSystemExtension::class)
@@ -15,8 +15,7 @@ class StatusTest(private val fileSystemProvider: FileSystemExtension.FileSystemP
 
     @BeforeEach
     fun before() {
-        path = fileSystemProvider.get().getPath("gitk-workspace")
-        Files.createDirectory(path)
+        path = fileSystemProvider.get().getPath("gitk-workspace").createDirectory()
     }
 
     @Test

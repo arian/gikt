@@ -1,5 +1,7 @@
 package com.github.arian.gikt.commands
 
+import com.github.arian.gikt.copyTo
+import com.github.arian.gikt.createDirectory
 import com.github.arian.gikt.database.ObjectId
 import com.github.arian.gikt.delete
 import com.github.arian.gikt.deleteRecursively
@@ -18,7 +20,6 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.Closeable
 import java.io.PrintStream
-import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Clock
 import java.time.Instant
@@ -32,8 +33,7 @@ class CommandHelper : Closeable {
         .build()
 
     init {
-        root = fs.getPath("gitk-repo")
-        Files.createDirectory(root)
+        root = fs.getPath("gitk-repo").createDirectory()
     }
 
     val repository by lazy { Repository(root) }
@@ -56,7 +56,7 @@ class CommandHelper : Closeable {
         root.resolve(name).readText()
 
     fun copy(source: String, target: String): Path =
-        Files.copy(root.resolve(source), root.resolve(target))
+        root.resolve(source).copyTo(root.resolve(target))
 
     fun makeUnreadable(name: String): Path =
         root.resolve(name).makeUnreadable()

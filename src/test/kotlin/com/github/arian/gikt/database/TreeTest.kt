@@ -2,6 +2,7 @@ package com.github.arian.gikt.database
 
 import com.github.arian.gikt.FileStat
 import com.github.arian.gikt.Workspace
+import com.github.arian.gikt.createTempDirectory
 import com.github.arian.gikt.deleteRecursively
 import com.github.arian.gikt.makeExecutable
 import com.github.arian.gikt.mkdirp
@@ -12,7 +13,6 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
-import java.nio.file.Files
 import java.nio.file.Path
 
 class TreeTest {
@@ -256,7 +256,7 @@ class TreeTest {
 
         @BeforeEach
         fun before() {
-            path = Files.createTempDirectory("gikt")
+            path = createTempDirectory("gikt")
         }
 
         @AfterEach
@@ -268,7 +268,7 @@ class TreeTest {
         fun executableFile() {
             val oid = ObjectId(ByteArray(20) { it.toByte() })
 
-            val file = Files.createFile(path.resolve("file.txt")).makeExecutable()
+            val file = path.resolve("file.txt").touch().makeExecutable()
 
             val tree = Tree(path.relativeTo(path)).apply {
                 addEntry(
