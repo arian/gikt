@@ -12,18 +12,16 @@ import java.time.ZonedDateTime
 
 class CommitTest {
 
+    private val author = Author(
+        "arian",
+        "arian@example.com",
+        ZonedDateTime.now(Clock.fixed(Instant.parse("2019-08-14T10:08:22.00Z"), ZoneId.of("Europe/Amsterdam")))
+    )
+
     @Test
     fun createCommit() {
         val oid = ObjectId("28e5b0ff3555872675b84c7c0d0119d8899743f0")
-
-        val zoneId = ZoneId.of("Europe/Amsterdam")
-        val author = Author(
-            "arian",
-            "arian@example.com",
-            ZonedDateTime.now(Clock.fixed(Instant.parse("2019-08-14T10:08:22.00Z"), zoneId))
-        )
-
-        val commit = Commit(null, oid, author, "hello".toByteArray())
+        val commit = Commit(emptyList(), oid, author, "hello".toByteArray())
 
         assertEquals(
             """tree $oid
@@ -40,18 +38,11 @@ class CommitTest {
     fun commitWithParent() {
         val oid = ObjectId("28e5b0ff3555872675b84c7c0d0119d8899743f0")
 
-        val zoneId = ZoneId.of("Europe/Amsterdam")
-        val author = Author(
-            "arian",
-            "arian@example.com",
-            ZonedDateTime.now(Clock.fixed(Instant.parse("2019-08-14T10:08:22.00Z"), zoneId))
-        )
-
         val parent = ObjectId(
             "ffe5b0ff3555872675b84c7c0d0119d8899743f0"
         )
 
-        val commit = Commit(parent, oid, author, "hello".toByteArray())
+        val commit = Commit(listOf(parent), oid, author, "hello".toByteArray())
 
         assertEquals(
             """tree $oid
@@ -65,12 +56,33 @@ class CommitTest {
         )
     }
 
+    @Test
+    fun commitWithParents() {
+        val oid = ObjectId("28e5b0ff3555872675b84c7c0d0119d8899743f0")
+
+        val parents = listOf(
+            ObjectId("ffe5b0ff3555872675b84c7c0d0119d8899743f0"),
+            ObjectId("ffe5b0ff3555872675b84c7c0d0119d8899743f1")
+        )
+
+        val commit = Commit(parents, oid, author, "hello".toByteArray())
+
+        assertEquals(
+            """tree $oid
+              |parent ffe5b0ff3555872675b84c7c0d0119d8899743f0
+              |parent ffe5b0ff3555872675b84c7c0d0119d8899743f1
+              |author arian <arian@example.com> 1565777302 +0200
+              |committer arian <arian@example.com> 1565777302 +0200
+              |
+              |hello
+              """.trimMargin(),
+            commit.data.toString(Charsets.UTF_8)
+        )
+    }
+
     private fun commitWithMessage(msg: String): Commit {
         val oid = ObjectId("28e5b0ff3555872675b84c7c0d0119d8899743f0")
-        val zoneId = ZoneId.of("Europe/Amsterdam")
-        val time = ZonedDateTime.now(Clock.fixed(Instant.parse("2019-08-14T10:08:22.00Z"), zoneId))
-        val author = Author("arian", "arian@example.com", time)
-        return Commit(null, oid, author, msg.toByteArray())
+        return Commit(emptyList(), oid, author, msg.toByteArray())
     }
 
     @Test
@@ -92,25 +104,29 @@ class CommitTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = ["", "28e5b0ff3555872675b84c7c0d0119d8899743f1"])
+    @ValueSource(
+        strings = [
+            "",
+            "28e5b0ff3555872675b84c7c0d0119d8899743f1",
+            "28e5b0ff3555872675b84c7c0d0119d8899743f1,28e5b0ff3555872675b84c7c0d0119d8899743f2",
+            "28e5b0ff3555872675b84c7c0d0119d8899743f1,28e5b0ff3555872675b84c7c0d0119d8899743f2," +
+                "28e5b0ff3555872675b84c7c0d0119d8899743f3,28e5b0ff3555872675b84c7c0d0119d8899743f4"
+        ]
+    )
     fun parseCommit(parentHex: String) {
-        val parent = parentHex.takeIf { it.isNotBlank() }?.let { ObjectId(it) }
+        val parents = parentHex
+            .split(",")
+            .mapNotNull { hex -> hex.takeIf { it.isNotBlank() }?.let { ObjectId(it) } }
         val tree = ObjectId("28e5b0ff3555872675b84c7c0d0119d8899743f0")
 
-        val zoneId = ZoneId.of("Europe/Amsterdam")
-        val author = Author(
-            "arian",
-            "arian@example.com",
-            ZonedDateTime.now(Clock.fixed(Instant.parse("2019-08-14T10:08:22.00Z"), zoneId))
-        )
-
         val message = "hello\nfoo\n\nlast\n"
-        val commit = Commit(parent, tree, author, message.toByteArray())
+        val commit = Commit(parents, tree, author, message.toByteArray())
 
         val bytes = commit.data
         val parsed = Commit.parse(bytes)
 
-        assertEquals(parent, parsed.parent)
+        assertEquals(parents, parsed.parents)
+        assertEquals(parents.firstOrNull(), parsed.parent)
         assertEquals(tree, parsed.tree)
         assertEquals(author, parsed.author)
         assertEquals(message, parsed.message.utf8())

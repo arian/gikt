@@ -1,15 +1,13 @@
 package com.github.arian.gikt.commands
 
-import com.github.arian.gikt.database.Author
-import com.github.arian.gikt.database.Commit
-import com.github.arian.gikt.database.Entry
-import java.time.Instant
+import com.github.arian.gikt.commands.util.WriteCommit
 
 class Commit(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
+
+    private val writeCommit = WriteCommit(ctx, repository)
+
     override fun run() {
-        val name = ctx.env("GIT_AUTHOR_NAME") ?: error("please set GIT_AUTHOR_NAME")
-        val email = ctx.env("GIT_AUTHOR_EMAIL") ?: error("please set GIT_AUTHOR_EMAIL")
-        val author = Author(name, email, Instant.now(ctx.clock).atZone(ctx.clock.zone))
+
         val message: ByteArray = ctx.stdin.readAllBytes()
 
         if (message.isEmpty()) {
@@ -17,18 +15,8 @@ class Commit(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
             exitProcess(1)
         }
 
-        val entries = repository.index.load().toList().map {
-            val path = repository.relativePath(repository.resolvePath(it.key))
-            Entry(path, it.stat, it.oid)
-        }
-
-        val root = repository.buildTree(entries)
-        root.traverse { repository.database.store(it) }
-
         val parent = repository.refs.readHead()
-        val commit = Commit(parent, root.oid, author, message)
-        repository.database.store(commit)
-        repository.refs.updateHead(commit.oid)
+        val commit = writeCommit.writeCommit(listOfNotNull(parent), message)
 
         val isRoot = parent?.let { "" } ?: "(root-commit) "
         println("[$isRoot${commit.oid.hex}] ${commit.title}")

@@ -123,7 +123,7 @@ class RevisionTest {
             val zoneId = ZoneId.of("Europe/Amsterdam")
             val time = ZonedDateTime.now(Clock.fixed(Instant.parse("2019-08-14T10:08:22.00Z"), zoneId))
             return Commit(
-                parent = parent,
+                parents = listOfNotNull(parent),
                 message = "commit".toByteArray(),
                 author = Author("arian", "arian@example.com", time),
                 tree = ObjectId("abc12def12def12def12def12def12def12def12")

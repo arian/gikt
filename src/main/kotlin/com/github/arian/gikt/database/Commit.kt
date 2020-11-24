@@ -1,12 +1,11 @@
 package com.github.arian.gikt.database
 
 import com.github.arian.gikt.utf8
-import java.io.ByteArrayInputStream
 import java.time.ZonedDateTime
 import java.util.Scanner
 
 data class Commit(
-    val parent: ObjectId?,
+    val parents: List<ObjectId>,
     val tree: ObjectId,
     val author: Author,
     val message: ByteArray
@@ -15,7 +14,7 @@ data class Commit(
     override val type = "commit"
 
     override val data: ByteArray by lazy {
-        val parentString = parent?.let { "parent $it\n" } ?: ""
+        val parentString = parents.joinToString(separator = "") { "parent $it\n" }
 
         """
         |tree $tree
@@ -25,6 +24,10 @@ data class Commit(
         |${message.utf8()}
         """.trimMargin().toByteArray(Charsets.UTF_8)
     }
+
+    val parent: ObjectId?
+        get() =
+            parents.firstOrNull()
 
     val title: String
         get() =
@@ -45,7 +48,7 @@ data class Commit(
         fun parse(bytes: ByteArray): Commit {
 
             val lines = sequence {
-                val scanner = Scanner(ByteArrayInputStream(bytes))
+                val scanner = Scanner(bytes.inputStream())
                 while (scanner.hasNextLine()) {
                     yield(scanner.nextLine())
                 }
@@ -57,24 +60,29 @@ data class Commit(
                     val item = it.split(" ", limit = 2)
                     item.first() to item.last()
                 }
-                .toMap()
+                .groupBy(
+                    keySelector = { (key, _) -> key },
+                    valueTransform = { (_, value) -> value }
+                )
 
             val start = lines
                 .takeWhile { it.isNotBlank() }
                 .fold(1) { acc, s -> acc + s.length + 1 }
 
             val tree = headers["tree"]
+                ?.firstOrNull()
                 ?.let { ObjectId(it) }
                 ?: throw IllegalStateException("Couldn't parse commit: missing 'tree' field")
 
             val author = headers["author"]
+                ?.firstOrNull()
                 ?.let { Author.parse(it) }
                 ?: throw IllegalStateException("Couldn't parse commit: invalid 'author' field")
 
             val message = bytes.sliceArray(start until bytes.size)
 
             return Commit(
-                parent = headers["parent"]?.let { ObjectId(it) },
+                parents = headers["parent"]?.map { ObjectId(it) } ?: emptyList(),
                 tree = tree,
                 author = author,
                 message = message

@@ -38,7 +38,7 @@ internal class RevListTest {
             .plusSeconds(timeOffset)
 
         val commit = Commit(
-            parent = parent,
+            parents = listOfNotNull(parent),
             message = "commit".toByteArray(),
             author = Author("arian", "arian@example.com", time),
             tree = tree
