@@ -32,6 +32,11 @@ class CommandHelper : Closeable {
         .newLinux()
         .build()
 
+    private val defaultEnv = mapOf(
+        "GIT_AUTHOR_NAME" to "Arian",
+        "GIT_AUTHOR_EMAIL" to "arian@example.com"
+    )
+
     init {
         root = fs.getPath("gitk-repo").createDirectory()
     }
@@ -88,11 +93,7 @@ class CommandHelper : Closeable {
     }
 
     fun commit(msg: String, timeOffset: Long = 0) {
-        val env = mapOf(
-            "GIT_AUTHOR_NAME" to "Arian",
-            "GIT_AUTHOR_EMAIL" to "arian@example.com"
-        )
-        cmd("commit", env = env, stdin = msg, timeOffset = timeOffset)
+        cmd("commit", env = defaultEnv, stdin = msg, timeOffset = timeOffset)
     }
 
     fun commitFile(
@@ -114,7 +115,7 @@ class CommandHelper : Closeable {
     fun cmd(
         name: String,
         vararg args: String,
-        env: Map<String, String> = emptyMap(),
+        env: Map<String, String> = defaultEnv,
         stdin: String? = null,
         timeOffset: Long = 0L
     ): CommandTestExecution {

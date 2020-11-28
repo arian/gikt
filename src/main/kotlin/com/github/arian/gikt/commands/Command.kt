@@ -136,6 +136,7 @@ object Commands {
         "init" to cmd { ctx, name -> Init(ctx, name) },
         "log" to withPager { ctx, name -> Log(ctx, name) },
         "ls-files" to cmd { ctx, name -> ListFiles(ctx, name) },
+        "merge" to cmd { ctx, name -> Merge(ctx, name) },
         "paged" to withPager { ctx, name -> Paged(ctx, name) },
         "show-head" to cmd { ctx, name -> ShowHead(ctx, name) },
         "status" to cmd { ctx, name -> Status(ctx, name) }
