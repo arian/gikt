@@ -27,7 +27,7 @@ internal class TreeDiffTest(private val fileSystemProvider: FileSystemExtension.
         rootPath = fileSystemProvider.get().getPath("gitk-root").mkdirp()
         database = Database(rootPath.resolve(".git/db"))
         workspace = Workspace(rootPath)
-        treeDiff = TreeDiff(rootPath.fileSystem, database)
+        treeDiff = TreeDiff(database)
     }
 
     private fun treeWithFiles(vararg files: Pair<String, String>): Tree {

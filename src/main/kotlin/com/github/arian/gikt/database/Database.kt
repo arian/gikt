@@ -54,10 +54,10 @@ class Database(private val pathname: Path) {
      * Use this only through [com.github.arian.gikt.repository.Repository],
      * unless it's used to traverse the database tree.
      */
-    fun load(oid: ObjectId, prefix: Path): GiktObject {
+    fun load(oid: ObjectId, prefix: Path? = null): GiktObject {
         val objPath = objectPath(oid)
         val content = objPath.readBytes().inflate()
-        val obj = GiktObject.parse(prefix, content)
+        val obj = GiktObject.parse(prefix ?: pathname.fileSystem.getPath(""), content)
         objects = objects + (oid to obj)
         return obj
     }
@@ -81,6 +81,6 @@ class Database(private val pathname: Path) {
     }
 
     fun treeDiff(a: ObjectId?, b: ObjectId, filter: PathFilter = PathFilter.any): TreeDiffMap {
-        return TreeDiff(pathname.fileSystem, this).compareOids(a, b, filter = filter)
+        return TreeDiff(this).compareOids(a, b, filter = filter, pathname.fileSystem.getPath(""))
     }
 }

@@ -36,7 +36,7 @@ class Repository(private val rootPath: Path) {
 
     fun loadObject(oid: ObjectId): GiktObject =
         try {
-            database.load(oid, prefix = rootPath)
+            database.load(oid)
         } catch (e: IllegalStateException) {
             throw BadObject(e, "bad object ${oid.hex}")
         } catch (e: IOException) {

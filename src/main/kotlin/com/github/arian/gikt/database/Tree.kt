@@ -50,7 +50,7 @@ class Tree(
             .flatMap { entry ->
                 listOf(
                     entry.mode.mode.toByteArray() + ' '.toByte(), // .toByteArrayPaddedRight(size = 7, padding = ' '),
-                    entry.name.relativeTo(name).toString().toByteArray(),
+                    entry.key.toString().toByteArray(),
                     nullByteArray,
                     entry.oid.bytes
                 )

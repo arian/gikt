@@ -2,7 +2,6 @@ package com.github.arian.gikt.database
 
 import com.github.arian.gikt.PathFilter
 import com.github.arian.gikt.relativeTo
-import java.nio.file.FileSystem
 import java.nio.file.Path
 
 sealed class TreeDiffMapValue {
@@ -28,7 +27,7 @@ sealed class TreeDiffMapValue {
 
 typealias TreeDiffMap = Map<Path, TreeDiffMapValue>
 
-class TreeDiff(private val fs: FileSystem, private val database: Database) {
+class TreeDiff(private val database: Database) {
 
     private class TreeGetter(val tree: Tree?, val filter: PathFilter) {
         operator fun get(key: Path): TreeEntry? = tree?.get(key.relativeTo(tree.name))
@@ -53,7 +52,7 @@ class TreeDiff(private val fs: FileSystem, private val database: Database) {
     }
 
     private fun loadTree(oid: ObjectId, prefix: Path?): Tree? {
-        return when (val obj = database.load(oid, prefix ?: fs.getPath(""))) {
+        return when (val obj = database.load(oid, prefix)) {
             is Commit -> loadTree(obj.tree, prefix)
             is Tree -> obj
             else -> null
