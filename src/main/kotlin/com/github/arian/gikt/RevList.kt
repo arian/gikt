@@ -11,6 +11,66 @@ class RevList(
     private val revs: List<StartPoint> = listOf(StartPoint.Rev(Revision(repository, Revision.HEAD)))
 ) {
 
+    fun itemsWithPatches(): Sequence<Item> =
+        revListStates().map {
+            Item.CommitWithPatch(
+                commit = it.commit,
+                patch = it.diff ?: repository.database.treeDiff(it.commit.parent, it.commit.oid, it.filter)
+            )
+        }
+
+    fun items(): Sequence<Item> =
+        revListStates().map { Item.JustCommit(it.commit) }
+
+    fun commits(): Sequence<Commit> =
+        revListStates().map { it.commit }
+
+    private fun startCommits(startPoints: List<StartPoint>): List<Commit> {
+        return startPoints
+            .filterIsInstance<StartPoint.Rev>()
+            .map { it.revision }
+            .mapNotNull { repository.loadObject(it.oid) as? Commit }
+    }
+
+    private fun initialState(startPoints: List<StartPoint>): RevState? {
+        val revsCommits = startCommits(startPoints).takeIf { it.isNotEmpty() }
+            ?: startCommits(parseStartPoints(repository, listOf(Revision.HEAD)))
+
+        val filter = startPoints
+            .filterIsInstance<StartPoint.Prune>()
+            .map { it.path }
+            .let { PathFilter.build(it) }
+
+        val initial = RevState(
+            filter = filter,
+            commit = revsCommits.firstOrNull() ?: return null,
+            commits = revsCommits.associateBy { it.oid },
+            queue = revsCommits.toSortedByDateDescendingSet()
+        )
+
+        return startPoints
+            .filterIsInstance<StartPoint.Rev>()
+            .fold(initial) { state, rev ->
+                if (rev.interesting) {
+                    state
+                } else {
+                    val commit = state.commits[rev.revision.oid] ?: return@fold state
+                    state.markUninteresting(commit)
+                }
+            }
+    }
+
+    private fun revListStates(): Sequence<RevState> {
+        val initial = initialState(revs) ?: return emptySequence()
+
+        return initial
+            .readAndFlagAllUninterested()
+            .asSequence()
+            .drop(1)
+            .filterNot { it.flags.marked(it.commit.oid, Flag.UNINTERESTING) }
+            .filterNot { it.flags.marked(it.commit.oid, Flag.TREESAME) }
+    }
+
     sealed class StartPoint {
         data class Rev(val revision: Revision, val interesting: Boolean = true) : StartPoint()
         data class Prune(val path: Path) : StartPoint()
@@ -25,7 +85,6 @@ class RevList(
     }
 
     private data class RevState(
-        private val repository: Repository,
         val filter: PathFilter,
         val commit: Commit,
         val commits: Map<ObjectId, Commit> = emptyMap(),
@@ -35,79 +94,13 @@ class RevList(
         val diff: TreeDiffMap? = null,
     ) {
 
-        fun asSequence(): Sequence<RevState> =
-            generateSequence(this) { it.step() }
-
-        fun readAndFlagAllUninterested(): RevState {
-            return if (limited) {
-                val uninterested = asSequence().last().flags.filterOnlyUninterested()
-                copy(flags = uninterested, limited = false)
-            } else {
-                this
-            }
-        }
-
         fun markUninteresting(commit: Commit): RevState =
             copy(
                 flags = flags.mark(commit.oid, Flag.UNINTERESTING).markParentsUninteresting(commit, commits),
                 limited = true
             )
 
-        private fun step(): RevState? {
-            if (!stillInteresting()) {
-                return null
-            }
-
-            val head = queue.firstOrNull() ?: return null
-            val oid = head.oid
-            val tail = queue.drop(1).map { it.oid }
-
-            val queue = (tail + listOfNotNull(head.parent))
-                .filterNot { flags.marked(it, Flag.SEEN) }
-                .mapNotNull { commits[it] ?: repository.loadObject(it) as? Commit }
-                .toSortedByDateDescendingSet()
-
-            val commits = commits
-                .plus(queue.associateBy { it.oid })
-                .let { commitCache ->
-                    if (limited) {
-                        commitCache
-                    } else {
-                        commitCache.filterKeys { !flags.marked(it, Flag.SEEN) }
-                    }
-                }
-
-            val diff = if (filter === PathFilter.any) {
-                null
-            } else {
-                repository.database.treeDiff(head.parent, head.oid, filter)
-            }
-
-            val flags = flags
-                .run {
-                    when {
-                        marked(oid, Flag.UNINTERESTING) -> markParentsUninteresting(head, commits)
-                        else -> this
-                    }
-                }
-                .run {
-                    when {
-                        diff != null && diff.isEmpty() -> mark(oid, Flag.TREESAME)
-                        else -> this
-                    }
-                }
-                .mark(oid, Flag.SEEN)
-
-            return copy(
-                commit = head,
-                queue = queue,
-                commits = commits,
-                flags = flags,
-                diff = diff
-            )
-        }
-
-        private fun stillInteresting(): Boolean {
+        fun stillInteresting(): Boolean {
             val firstInQueue = queue.firstOrNull() ?: return false
             if (commit.date <= firstInQueue.date) {
                 return true
@@ -149,66 +142,71 @@ class RevList(
         TREESAME,
     }
 
-    private fun startCommits(startPoints: List<StartPoint>): List<Commit> {
-        return startPoints
-            .filterIsInstance<StartPoint.Rev>()
-            .map { it.revision }
-            .mapNotNull { repository.loadObject(it.oid) as? Commit }
+    private fun RevState.readAndFlagAllUninterested(): RevState {
+        return if (limited) {
+            val uninterested = asSequence().last().flags.filterOnlyUninterested()
+            copy(flags = uninterested, limited = false)
+        } else {
+            this
+        }
     }
 
-    private fun initialState(startPoints: List<StartPoint>): RevState? {
-        val revsCommits = startCommits(startPoints).takeIf { it.isNotEmpty() }
-            ?: startCommits(parseStartPoints(repository, listOf(Revision.HEAD)))
+    private fun RevState.asSequence(): Sequence<RevState> =
+        generateSequence(this) { it.step() }
 
-        val filter = startPoints
-            .filterIsInstance<StartPoint.Prune>()
-            .map { it.path }
-            .let { PathFilter.build(it) }
-
-        val initial = RevState(
-            repository = repository,
-            filter = filter,
-            commit = revsCommits.firstOrNull() ?: return null,
-            commits = revsCommits.associateBy { it.oid },
-            queue = revsCommits.toSortedByDateDescendingSet()
-        )
-
-        return startPoints
-            .filterIsInstance<StartPoint.Rev>()
-            .fold(initial) { state, rev ->
-                if (rev.interesting) {
-                    state
-                } else {
-                    val commit = state.commits[rev.revision.oid] ?: return@fold state
-                    state.markUninteresting(commit)
-                }
-            }
-    }
-
-    private fun revListStates(): Sequence<RevState> {
-        val initial = initialState(revs) ?: return emptySequence()
-
-        return initial
-            .readAndFlagAllUninterested()
-            .asSequence()
-            .drop(1)
-            .filterNot { it.flags.marked(it.commit.oid, Flag.UNINTERESTING) }
-            .filterNot { it.flags.marked(it.commit.oid, Flag.TREESAME) }
-    }
-
-    fun itemsWithPatches(): Sequence<Item> =
-        revListStates().map {
-            Item.CommitWithPatch(
-                commit = it.commit,
-                patch = it.diff ?: repository.database.treeDiff(it.commit.parent, it.commit.oid, it.filter)
-            )
+    private fun RevState.step(): RevState? {
+        if (!stillInteresting()) {
+            return null
         }
 
-    fun items(): Sequence<Item> =
-        revListStates().map { Item.JustCommit(it.commit) }
+        val head = queue.firstOrNull() ?: return null
+        val oid = head.oid
+        val tail = queue.drop(1).map { it.oid }
 
-    fun commits(): Sequence<Commit> =
-        revListStates().map { it.commit }
+        val queue = (tail + listOfNotNull(head.parent))
+            .filterNot { flags.marked(it, Flag.SEEN) }
+            .mapNotNull { commits[it] ?: repository.loadObject(it) as? Commit }
+            .toSortedByDateDescendingSet()
+
+        val commits = commits
+            .plus(queue.associateBy { it.oid })
+            .let { commitCache ->
+                if (limited) {
+                    commitCache
+                } else {
+                    commitCache.filterKeys { !flags.marked(it, Flag.SEEN) }
+                }
+            }
+
+        val diff = if (filter === PathFilter.any) {
+            null
+        } else {
+            repository.database.treeDiff(head.parent, head.oid, filter)
+        }
+
+        val flags = flags
+            .run {
+                when {
+                    marked(oid, Flag.UNINTERESTING) -> markParentsUninteresting(head, commits)
+                    else -> this
+                }
+            }
+            .run {
+                when {
+                    diff != null && diff.isEmpty() -> mark(oid, Flag.TREESAME)
+                    else -> this
+                }
+            }
+            .mark(oid, Flag.SEEN)
+
+        return copy(
+            commit = head,
+            queue = queue,
+            commits = commits,
+            flags = flags,
+            diff = diff
+        )
+    }
 
     companion object {
 
