@@ -24,6 +24,13 @@ internal class MergeTest {
         return requireNotNull(cmd.repository.refs.readHead())
     }
 
+    /**
+     * A     B     C
+     * o<----o<----o<-----.
+     *        \            \
+     *         o<-----o<----o<==
+     *         D      E     M
+     */
     @Test
     fun `merge two branches`() {
         // A

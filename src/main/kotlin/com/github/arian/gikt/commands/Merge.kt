@@ -2,7 +2,7 @@ package com.github.arian.gikt.commands
 
 import com.github.arian.gikt.Revision
 import com.github.arian.gikt.commands.util.WriteCommit
-import com.github.arian.gikt.merge.CommonAncestors
+import com.github.arian.gikt.merge.Bases
 import kotlinx.cli.ArgType
 
 class Merge(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
@@ -31,7 +31,7 @@ class Merge(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
                 exitProcess(128)
             }
 
-        val baseOid = CommonAncestors(repository.database, headOid, mergeOid).find()
+        val baseOid = Bases(repository.database, headOid, mergeOid).find().firstOrNull()
 
         repository.index.loadForUpdate {
             val treeDiff = repository.database.treeDiff(baseOid, mergeOid)

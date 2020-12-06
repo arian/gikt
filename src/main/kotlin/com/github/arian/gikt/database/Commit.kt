@@ -43,6 +43,9 @@ data class Commit(
     override fun hashCode(): Int =
         super.hashCode()
 
+    override fun toString(): String =
+        "Commit(oid=$oid)"
+
     companion object {
 
         fun parse(bytes: ByteArray): Commit {
