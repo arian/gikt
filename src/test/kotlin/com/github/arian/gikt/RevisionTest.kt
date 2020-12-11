@@ -77,7 +77,7 @@ class RevisionTest {
     @Test
     fun `parse parent`() {
         assertEquals(
-            Rev.Parent(Rev.Ref("HEAD")),
+            Rev.Parent(Rev.Ref("HEAD"), 1),
             Revision.parse("@^")
         )
     }
@@ -85,8 +85,24 @@ class RevisionTest {
     @Test
     fun `parse grand parent`() {
         assertEquals(
-            Rev.Parent(Rev.Parent(Rev.Ref("HEAD"))),
+            Rev.Parent(Rev.Parent(Rev.Ref("HEAD"), 1), 1),
             Revision.parse("HEAD^^")
+        )
+    }
+
+    @Test
+    fun `parse requested parent`() {
+        assertEquals(
+            Rev.Parent(Rev.Ref("HEAD"), 5),
+            Revision.parse("@^5")
+        )
+    }
+
+    @Test
+    fun `parse parent of requested parent`() {
+        assertEquals(
+            Rev.Parent(Rev.Parent(Rev.Ref("HEAD"), 5), 1),
+            Revision.parse("@^5^")
         )
     }
 
@@ -101,7 +117,7 @@ class RevisionTest {
     @Test
     fun `parse ancestor of parent`() {
         assertEquals(
-            Rev.Parent(Rev.Ancestor(Rev.Ref("abc123"), 3)),
+            Rev.Parent(Rev.Ancestor(Rev.Ref("abc123"), 3), 1),
             Revision.parse("abc123~3^")
         )
     }
@@ -119,11 +135,11 @@ class RevisionTest {
             git = ws.resolve(".git").mkdirp()
         }
 
-        private fun commit(parent: ObjectId? = null): Commit {
+        private fun commit(parents: List<ObjectId> = emptyList()): Commit {
             val zoneId = ZoneId.of("Europe/Amsterdam")
             val time = ZonedDateTime.now(Clock.fixed(Instant.parse("2019-08-14T10:08:22.00Z"), zoneId))
             return Commit(
-                parents = listOfNotNull(parent),
+                parents = parents,
                 message = "commit".toByteArray(),
                 author = Author("arian", "arian@example.com", time),
                 tree = ObjectId("abc12def12def12def12def12def12def12def12")
@@ -169,7 +185,7 @@ class RevisionTest {
             val root = commit()
             repo.database.store(root)
 
-            val commit = commit(root.oid)
+            val commit = commit(listOf(root.oid))
             repo.database.store(commit)
 
             git.resolve("HEAD").write(commit.oid.hex)
@@ -179,13 +195,30 @@ class RevisionTest {
         }
 
         @Test
+        fun `resolve second parent HEAD id`() {
+            val repo = Repository(ws)
+
+            val root1 = commit().also { repo.database.store(it) }
+            val root2 = commit().also { repo.database.store(it) }
+            val root3 = commit().also { repo.database.store(it) }
+
+            val commit = commit(listOf(root1.oid, root2.oid, root3.oid))
+            repo.database.store(commit)
+
+            git.resolve("HEAD").write(commit.oid.hex)
+
+            val oid = Revision.parse("HEAD^3")?.resolve(repo)
+            assertEquals(Res.Commit(root3), oid)
+        }
+
+        @Test
         fun `resolve ancestor HEAD id`() {
             val repo = Repository(ws)
 
             val root = commit()
             repo.database.store(root)
 
-            val commit = commit(root.oid)
+            val commit = commit(listOf(root.oid))
             repo.database.store(commit)
             git.resolve("HEAD").write(commit.oid.hex)
 
@@ -200,10 +233,10 @@ class RevisionTest {
             val root = commit()
             repo.database.store(root)
 
-            val first = commit(root.oid)
+            val first = commit(listOf(root.oid))
             repo.database.store(first)
 
-            val second = commit(first.oid)
+            val second = commit(listOf(first.oid))
             repo.database.store(second)
 
             git.resolve("HEAD").write(second.oid.hex)

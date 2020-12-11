@@ -21,7 +21,7 @@ class Revision(private val repo: Repository, private val expression: String) {
 
     internal sealed class Rev {
         data class Ref(val name: String) : Rev()
-        data class Parent(val rev: Rev) : Rev()
+        data class Parent(val rev: Rev, val n: Int) : Rev()
         data class Ancestor(val rev: Rev, val n: Int) : Rev()
     }
 
@@ -48,7 +48,7 @@ class Revision(private val repo: Repository, private val expression: String) {
 
         const val HEAD = "HEAD"
 
-        private val PARENT = Regex("^(.+)\\^$")
+        private val PARENT = Regex("^(.+)\\^(\\d*)$")
         private val ANCESTOR = Regex("^(.+)~(\\d+)$")
         private val REF_ALIASES = mapOf(
             "@" to HEAD
@@ -59,8 +59,11 @@ class Revision(private val repo: Repository, private val expression: String) {
         private fun parseParent(revision: String): Rev? =
             PARENT.matchEntire(revision)
                 ?.destructured
-                ?.let { (ref) -> parse(ref) }
-                ?.let { Rev.Parent(it) }
+                ?.let { (ref, n) ->
+                    parse(ref)?.let { rev ->
+                        Rev.Parent(rev, n.toIntOrNull() ?: 1)
+                    }
+                }
 
         private fun parseAncestor(revision: String): Rev? =
             ANCESTOR.matchEntire(revision)
@@ -83,14 +86,14 @@ class Revision(private val repo: Repository, private val expression: String) {
 
         internal fun Rev.resolve(repo: Repository): Res =
             when (this) {
-                is Rev.Parent -> rev.resolve(repo).parent(repo)
+                is Rev.Parent -> rev.resolve(repo).parent(repo, n)
                 is Rev.Ancestor -> (0 until n).fold(rev.resolve(repo)) { it, _ -> it.parent(repo) }
                 is Rev.Ref -> readRef(name, repo)
             }
 
-        private fun Res.parent(repo: Repository): Res =
+        private fun Res.parent(repo: Repository, n: Int = 1): Res =
             when (this) {
-                is Res.Commit -> commitParent(commit.oid, repo)
+                is Res.Commit -> commitParent(repo, commit.oid, n)
                 else -> this
             }
 
@@ -102,9 +105,9 @@ class Revision(private val repo: Repository, private val expression: String) {
             }
         }
 
-        private fun commitParent(oid: ObjectId, repo: Repository): Res =
+        private fun commitParent(repo: Repository, oid: ObjectId, n: Int): Res =
             when (val result = oid.toRes(repo)) {
-                is Res.Commit -> result.commit.parent.toRes(repo)
+                is Res.Commit -> result.commit.parents.getOrNull(n - 1).toRes(repo)
                 else -> result
             }
 
