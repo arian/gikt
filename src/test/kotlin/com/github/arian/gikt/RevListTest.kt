@@ -276,6 +276,13 @@ internal class RevListTest {
         assertRevList(listOf(commitD, commitC), log)
     }
 
+    /**
+     * A   B   C   M
+     * o<--o<--o<--o
+     *  \         /
+     *   o<--o<--+
+     *   D   E
+     */
     private inner class RepoWithCommits(val repository: Repository = repository()) {
 
         val treeA = treeWithFiles(repository, "a.txt" to "", "foo/bar/b.txt" to "b")
@@ -287,8 +294,23 @@ internal class RevListTest {
         val treeC = treeWithFiles(repository, "a.txt" to "b", "foo/bar/b.txt" to "c")
         val commitC = commit(repository, parent = commitB, tree = treeC.oid).oid
 
+        val treeD = treeWithFiles(repository, "a.txt" to "", "d.txt" to "d")
+        val commitD = commit(repository, parent = commitA, tree = treeD.oid).oid
+
+        val treeE = treeWithFiles(repository, "a.txt" to "", "d.txt" to "e")
+        val commitE = commit(repository, parent = commitD, tree = treeE.oid).oid
+
+        val treeM = treeWithFiles(
+            repository,
+            "a.txt" to "b",
+            "foo/bar/b.txt" to "c",
+            "d.txt" to "e",
+        )
+        val commitM = commit(repository, parents = listOf(commitC, commitE), tree = treeM.oid).oid
+
         init {
             repository.resolvePath("a.txt").write("")
+            repository.resolvePath("d.txt").write("")
             repository.resolvePath("foo/bar/b.txt").run {
                 parent.mkdirp()
                 write("")
@@ -440,6 +462,40 @@ internal class RevListTest {
                 ),
                 testRepo.revList("${testRepo.commitJ.hex}..${testRepo.commitL}").commits().toList()
             )
+        }
+
+        @Test
+        fun `prune treesame commits with file from first parent branch`() {
+            val repo = RepoWithCommits()
+
+            val revList = RevList(
+                repo.repository,
+                RevList.parseStartPoints(
+                    repo.repository,
+                    listOf("a.txt", repo.commitM.hex)
+                )
+            )
+
+            val log = revList.commits().toList()
+
+            assertRevList(listOf(repo.commitB, repo.commitA), log)
+        }
+
+        @Test
+        fun `prune treesame commits with file from second parent branch`() {
+            val repo = RepoWithCommits()
+
+            val revList = RevList(
+                repo.repository,
+                RevList.parseStartPoints(
+                    repo.repository,
+                    listOf("d.txt", repo.commitM.hex)
+                )
+            )
+
+            val log = revList.commits().toList()
+
+            assertRevList(listOf(repo.commitE, repo.commitD), log)
         }
     }
 }

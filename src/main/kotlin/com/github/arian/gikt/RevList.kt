@@ -15,7 +15,8 @@ class RevList(
         revListStates().map {
             Item.CommitWithPatch(
                 commit = it.commit,
-                patch = it.diff ?: repository.database.treeDiff(it.commit.parent, it.commit.oid, it.filter)
+                patch = it.diff[it.commit.parent]
+                    ?: repository.database.treeDiff(it.commit.parent, it.commit.oid, it.filter)
             )
         }
 
@@ -91,7 +92,7 @@ class RevList(
         val flags: Flags = Flags(),
         val queue: LinkedHashSet<Commit> = LinkedHashSet(),
         val limited: Boolean = false,
-        val diff: TreeDiffMap? = null,
+        val diff: Map<ObjectId?, TreeDiffMap> = emptyMap(),
     ) {
 
         fun markUninteresting(commit: Commit): RevState =
@@ -117,6 +118,9 @@ class RevList(
             val oidFlags = flags.getOrDefault(oid, emptySet()) + flag
             return copy(flags = flags + (oid to oidFlags))
         }
+
+        fun applyIf(predicate: Boolean, function: Flags.() -> Flags): Flags =
+            if (predicate) this.function() else this
 
         fun marked(oid: ObjectId, flag: Flag): Boolean =
             flags[oid]?.contains(flag) == true
@@ -169,7 +173,24 @@ class RevList(
         val oid = head.oid
         val tail = queue.drop(1).map { it.oid }
 
-        val queue = (tail + head.parents)
+        val parentDiffs = if (filter === PathFilter.any) {
+            null
+        } else {
+            (head.parents.takeIf { it.isNotEmpty() } ?: listOf(null)).map {
+                it to repository.database.treeDiff(it, head.oid, filter)
+            }
+        }
+
+        val emptyDiffParent = parentDiffs?.find { (_, diff) -> diff.isEmpty() }
+        val emptyDiffParentOid = emptyDiffParent?.first
+
+        val parents = if (emptyDiffParentOid != null) {
+            listOf(emptyDiffParentOid)
+        } else {
+            head.parents
+        }
+
+        val queue = (tail + parents)
             .filterNot { flags.marked(it, Flag.SEEN) }
             .mapNotNull { commits[it] ?: repository.loadObject(it) as? Commit }
             .toSortedByDateDescendingSet()
@@ -184,33 +205,17 @@ class RevList(
                 }
             }
 
-        val diff = if (filter === PathFilter.any) {
-            null
-        } else {
-            repository.database.treeDiff(head.parent, head.oid, filter)
-        }
-
         val flags = flags
-            .run {
-                when {
-                    marked(oid, Flag.UNINTERESTING) -> markParentsUninteresting(head, commits)
-                    else -> this
-                }
-            }
-            .run {
-                when {
-                    diff != null && diff.isEmpty() -> mark(oid, Flag.TREESAME)
-                    else -> this
-                }
-            }
             .mark(oid, Flag.SEEN)
+            .applyIf(flags.marked(oid, Flag.UNINTERESTING)) { markParentsUninteresting(head, commits) }
+            .applyIf(emptyDiffParent != null) { mark(oid, Flag.TREESAME) }
 
         return copy(
             commit = head,
             queue = queue,
             commits = commits,
             flags = flags,
-            diff = diff
+            diff = parentDiffs?.toMap().orEmpty()
         )
     }
 
@@ -231,7 +236,10 @@ class RevList(
             RANGE.find(rev)?.destructured?.let { (uninteresting, interesting) ->
                 listOf(
                     StartPoint.Rev(
-                        revision = Revision(repository, uninteresting.takeIf { it.isNotBlank() } ?: Revision.HEAD),
+                        revision = Revision(
+                            repository,
+                            uninteresting.takeIf { it.isNotBlank() } ?: Revision.HEAD
+                        ),
                         interesting = false
                     ),
                     StartPoint.Rev(
