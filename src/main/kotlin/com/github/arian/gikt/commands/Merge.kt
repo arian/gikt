@@ -38,9 +38,9 @@ class Merge(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
             val migration = repository.migration(treeDiff)
             migration.applyChanges(this)
             writeUpdates()
+            writeCommit.writeCommit(this, listOf(headOid, mergeOid), message)
         }
 
-        writeCommit.writeCommit(listOf(headOid, mergeOid), message)
         exitProcess(0)
     }
 }

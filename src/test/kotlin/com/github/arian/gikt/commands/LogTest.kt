@@ -70,8 +70,8 @@ internal class LogTest {
 
     @Test
     fun `format=oneline should show each commit on a single line`() {
-        val first = cmd.commitFile("a", msg = "first")
-        val second = cmd.commitFile("a", msg = "second\nfoo\nbar")
+        val first = cmd.commitFile("a", contents = "1", msg = "first")
+        val second = cmd.commitFile("a", contents = "2", msg = "second\nfoo\nbar")
         val execution = cmd.cmd("log", "--format", "oneline")
         assertEquals(0, execution.status)
         assertFalse(execution.stdout.startsWith("\n"))
@@ -88,13 +88,13 @@ internal class LogTest {
     @Test
     fun `oneline option should show each commit abbreviated on a single line`() {
         cmd.commitFile("a", msg = "first")
-        cmd.commitFile("a", msg = "second\nfoo\nbar")
+        cmd.commitFile("a", contents = "1", msg = "second\nfoo\nbar")
         val execution = cmd.cmd("log", "--oneline")
         assertEquals(0, execution.status)
         assertFalse(execution.stdout.startsWith("\n"))
         assertEquals(
             """
-            |b195aa1 second
+            |c247c6f second
             |c437776 first
             |
             """.trimMargin(),
@@ -104,11 +104,11 @@ internal class LogTest {
 
     @Test
     fun `decorate flag shows the branch names`() {
-        val commit1 = cmd.commitFile("a", msg = "first")
-        val commit2 = cmd.commitFile("a", msg = "second")
+        val commit1 = cmd.commitFile("a", contents = "1", msg = "first")
+        val commit2 = cmd.commitFile("a", contents = "2", msg = "second")
         cmd.cmd("branch", "topic")
-        val commit3 = cmd.commitFile("a", msg = "third")
-        val commit4 = cmd.commitFile("a", msg = "fourth")
+        val commit3 = cmd.commitFile("a", contents = "3", msg = "third")
+        val commit4 = cmd.commitFile("a", contents = "4", msg = "fourth")
         cmd.cmd("branch", "new-topic")
 
         val execution = cmd.cmd("log", "--format", "oneline", "--decorate", "short")
@@ -145,9 +145,9 @@ internal class LogTest {
 
     @Test
     fun `decorate flag full`() {
-        val commit1 = cmd.commitFile("a", msg = "first")
+        val commit1 = cmd.commitFile("a", contents = "1", msg = "first")
         cmd.cmd("branch", "topic")
-        val commit2 = cmd.commitFile("a", msg = "second")
+        val commit2 = cmd.commitFile("a", contents = "2", msg = "second")
 
         val execution = cmd.cmd("log", "--format", "oneline", "--decorate", "full")
         assertEquals(0, execution.status)
@@ -288,10 +288,10 @@ internal class LogTest {
     @Test
     fun `start argument`() {
         val commit1 = cmd.commitFile("a", msg = "first")
-        val commit2 = cmd.commitFile("a", msg = "second")
-        val commit3 = cmd.commitFile("a", msg = "third")
-        cmd.commitFile("a", msg = "fourth")
-        cmd.commitFile("a", msg = "fifth")
+        val commit2 = cmd.commitFile("a", contents = "2", msg = "second")
+        val commit3 = cmd.commitFile("a", contents = "3", msg = "third")
+        cmd.commitFile("a", contents = "4", msg = "fourth")
+        cmd.commitFile("a", contents = "5", msg = "fifth")
 
         val execution = cmd.cmd("log", "--format", "oneline", "HEAD^^")
         assertEquals(0, execution.status)
@@ -309,11 +309,11 @@ internal class LogTest {
     @Test
     fun `multiple start arguments`() {
         val commit1 = cmd.commitFile("a", msg = "first", timeOffset = 0)
-        val commit2 = cmd.commitFile("a", msg = "second", timeOffset = 1)
+        val commit2 = cmd.commitFile("a", contents = "2", msg = "second", timeOffset = 1)
         cmd.cmd("branch", "main")
         cmd.cmd("checkout", "main^")
-        val commit3 = cmd.commitFile("a", msg = "third", timeOffset = 2)
-        val commit4 = cmd.commitFile("a", msg = "fourth", timeOffset = 3)
+        val commit3 = cmd.commitFile("a", contents = "3", msg = "third", timeOffset = 2)
+        val commit4 = cmd.commitFile("a", contents = "4", msg = "fourth", timeOffset = 3)
         cmd.cmd("branch", "topic")
 
         val execution = cmd.cmd("log", "--format", "oneline", "main", "topic")
@@ -333,11 +333,11 @@ internal class LogTest {
     @Test
     fun `excluded branch`() {
         cmd.commitFile("a", msg = "first", timeOffset = 0)
-        val commit2 = cmd.commitFile("a", msg = "second", timeOffset = 1)
+        val commit2 = cmd.commitFile("a", contents = "2", msg = "second", timeOffset = 1)
         cmd.cmd("branch", "main")
         cmd.cmd("checkout", "main^")
-        cmd.commitFile("a", msg = "third", timeOffset = 2)
-        cmd.commitFile("a", msg = "fourth", timeOffset = 3)
+        cmd.commitFile("a", contents = "3", msg = "third", timeOffset = 2)
+        cmd.commitFile("a", contents = "4", msg = "fourth", timeOffset = 3)
         cmd.cmd("branch", "topic")
 
         val execution = cmd.cmd("log", "--format", "oneline", "..main")

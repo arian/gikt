@@ -16,6 +16,7 @@ import com.github.arian.gikt.repository.Repository
 import com.github.arian.gikt.touch
 import com.github.arian.gikt.write
 import com.github.marschall.memoryfilesystem.MemoryFileSystemBuilder
+import org.junit.jupiter.api.Assertions.assertEquals
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.Closeable
@@ -93,7 +94,8 @@ class CommandHelper : Closeable {
     }
 
     fun commit(msg: String, timeOffset: Long = 0) {
-        cmd("commit", env = defaultEnv, stdin = msg, timeOffset = timeOffset)
+        val execution = cmd("commit", env = defaultEnv, stdin = msg, timeOffset = timeOffset)
+        assertEquals(0, execution.status)
     }
 
     fun commitFile(

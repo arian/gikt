@@ -15,9 +15,22 @@ class Commit(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
             exitProcess(1)
         }
 
-        val parent = repository.refs.readHead()
-        val commit = writeCommit.writeCommit(listOfNotNull(parent), message)
+        val index = repository.index.load()
+        val status = repository.status().scan(index)
 
+        if (status.changes.indexChanges().isEmpty()) {
+            ctx.stderr.println(
+                when {
+                    status.changes.workspaceChanges().isNotEmpty() -> "no changes added to commit"
+                    status.untracked.isNotEmpty() -> "nothing added to commit but untracked files present"
+                    else -> "nothing to commit, working tree clean"
+                }
+            )
+            exitProcess(1)
+        }
+
+        val parent = repository.refs.readHead()
+        val commit = writeCommit.writeCommit(index, listOfNotNull(parent), message)
         val isRoot = parent?.let { "" } ?: "(root-commit) "
         println("[$isRoot${commit.oid.hex}] ${commit.title}")
         exitProcess(0)

@@ -63,4 +63,15 @@ class CommitTest {
         assertEquals(1, execution.status)
         assertEquals("gikt: empty commit message\n", execution.stderr)
     }
+
+    @Test
+    fun `should fail when nothing is staged`() {
+        cmd.writeFile("hello.txt", "hello")
+        cmd.cmd("add", "hello.txt")
+        cmd.cmd("commit", env = env, stdin = "first")
+        val execution = cmd.cmd("commit", env = env, stdin = "first")
+
+        assertEquals(1, execution.status)
+        assertEquals("nothing to commit, working tree clean\n", execution.stderr)
+    }
 }
