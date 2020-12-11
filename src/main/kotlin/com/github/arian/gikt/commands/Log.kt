@@ -159,7 +159,7 @@ class Log(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
     }
 
     private fun showPatch(item: RevList.Item, blankline: String = ""): String {
-        if (item !is RevList.Item.CommitWithPatch) {
+        if (item !is RevList.Item.CommitWithPatch || item.commit.parents.size > 1) {
             return ""
         }
 

@@ -431,4 +431,48 @@ internal class LogTest {
             execution.stdout
         )
     }
+
+    @Test
+    fun `hide patches for merge commits`() {
+        cmd.cmd("branch", "topic")
+        val commit1 = cmd.commitFile("a", contents = "1", msg = "first")
+        val commit2 = cmd.commitFile("a", contents = "2", msg = "second")
+        cmd.cmd("checkout", "topic")
+        val commit3 = cmd.commitFile("b", msg = "third")
+        cmd.cmd("merge", "main", stdin = "merge main")
+
+        val execution = cmd.cmd("log", "--oneline", "-p")
+        assertEquals(0, execution.status)
+        assertEquals(
+            """
+            |ad2dd18 merge main
+            |${commit3.short} third
+            |diff --git a/b b/b
+            |new file mode 100755
+            |index 0000000..e69de29
+            |--- a/b
+            |+++ b/b
+            |@@ -0,0 +1 @@
+            |+
+            |${commit2.short} second
+            |diff --git a/a b/a
+            |index 56a6051..d8263ee 100644
+            |--- a/a
+            |+++ b/a
+            |@@ -1,1 +1,1 @@
+            |-1
+            |+2
+            |${commit1.short} first
+            |diff --git a/a b/a
+            |new file mode 100644
+            |index 0000000..56a6051
+            |--- a/a
+            |+++ b/a
+            |@@ -0,0 +1 @@
+            |+1
+            |
+            """.trimMargin(),
+            execution.stdout
+        )
+    }
 }
