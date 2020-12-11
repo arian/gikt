@@ -19,6 +19,8 @@ import java.time.ZonedDateTime
 
 internal class RevListTest {
 
+    private val treeOid = ObjectId("abc12def12def12def12def12def12def12def12")
+
     private fun repository(): Repository {
         val fs = MemoryFileSystemBuilder.newLinux().build()
         val ws = fs.getPath("/gitk-objects").mkdirp()
@@ -27,10 +29,11 @@ internal class RevListTest {
 
     private fun commit(
         repo: Repository,
-        parent: ObjectId? = null,
+        parents: List<ObjectId> = emptyList(),
         timeOffset: Long = 0L,
-        tree: ObjectId
+        tree: ObjectId = treeOid
     ): Commit {
+
         val zoneId = ZoneId.of("Europe/Amsterdam")
 
         val time = ZonedDateTime
@@ -38,7 +41,7 @@ internal class RevListTest {
             .plusSeconds(timeOffset)
 
         val commit = Commit(
-            parents = listOfNotNull(parent),
+            parents = parents,
             message = "commit".toByteArray(),
             author = Author("arian", "arian@example.com", time),
             tree = tree
@@ -49,15 +52,20 @@ internal class RevListTest {
 
     private fun commit(
         repo: Repository,
+        parent: ObjectId?,
+        timeOffset: Long = 0L,
+        tree: ObjectId = treeOid
+    ): Commit =
+        commit(repo, listOfNotNull(parent), timeOffset, tree)
+
+    private fun commit(
+        repo: Repository,
         parent: ObjectId? = null,
         timeOffset: Long = 0L,
-        tree: String? = null
+        tree: String
     ): Commit {
-        val treeOid = ObjectId(
-            tree?.toByteArray()?.sha1()?.toHexString()
-                ?: "abc12def12def12def12def12def12def12def12"
-        )
-        return commit(repo, parent, timeOffset, treeOid)
+        val oid = tree.toByteArray().sha1().toHexString().let { ObjectId(it) }
+        return commit(repo, listOfNotNull(parent), timeOffset, oid)
     }
 
     private fun assertRevList(expected: List<ObjectId>, actual: List<Commit>) =
@@ -367,6 +375,71 @@ internal class RevListTest {
             )
             val log = revList.commits().toList()
             assertRevList(listOf(repo.commitC, repo.commitB, repo.commitA), log)
+        }
+    }
+
+    @Nested
+    inner class MergedRepo {
+
+        /**
+         * A   B      C        D
+         * o<--o<-----o<-------o
+         *  \   \               \
+         *   \   o<--o<--o<--o<--o<--o
+         *    \  E   D   F   G   H   J
+         *     o<--o
+         *     K   L
+         */
+        private inner class Repo(
+            val repository: Repository = repository(),
+            val commitA: ObjectId = commit(repository).oid,
+            val commitB: ObjectId = commit(repository, commitA, timeOffset = 1).oid,
+            val commitC: ObjectId = commit(repository, commitB, timeOffset = 3).oid,
+            val commitD: ObjectId = commit(repository, commitC, timeOffset = 5).oid,
+            val commitE: ObjectId = commit(repository, commitB, timeOffset = 2).oid,
+            val commitF: ObjectId = commit(repository, commitE, timeOffset = 4).oid,
+            val commitG: ObjectId = commit(repository, commitF, timeOffset = 6).oid,
+            val commitH: ObjectId = commit(repository, parents = listOf(commitD, commitG), timeOffset = 7).oid,
+            val commitJ: ObjectId = commit(repository, commitH, timeOffset = 8).oid,
+            val commitK: ObjectId = commit(repository, commitA, timeOffset = 9).oid,
+            val commitL: ObjectId = commit(repository, commitK, timeOffset = 10).oid,
+        ) {
+            fun revList(start: String) =
+                RevList(repository, start(start))
+
+            fun start(rev: String) =
+                RevList.parseStartPoints(repository, listOf(rev))
+        }
+
+        @Test
+        fun `show log of merged branches by date descending`() {
+            val testRepo = Repo()
+            assertRevList(
+                listOf(
+                    testRepo.commitJ,
+                    testRepo.commitH,
+                    testRepo.commitG,
+                    testRepo.commitD,
+                    testRepo.commitF,
+                    testRepo.commitC,
+                    testRepo.commitE,
+                    testRepo.commitB,
+                    testRepo.commitA,
+                ),
+                testRepo.revList(testRepo.commitJ.hex).commits().toList()
+            )
+        }
+
+        @Test
+        fun `show log excluding all commits of branch with merge commits`() {
+            val testRepo = Repo()
+            assertRevList(
+                listOf(
+                    testRepo.commitL,
+                    testRepo.commitK,
+                ),
+                testRepo.revList("${testRepo.commitJ.hex}..${testRepo.commitL}").commits().toList()
+            )
         }
     }
 }

@@ -122,7 +122,13 @@ class RevList(
             flags[oid]?.contains(flag) == true
 
         fun markParentsUninteresting(commit: Commit, commits: Map<ObjectId, Commit>): Flags =
-            generateSequence(commit.parent) { commits[it]?.parent }
+            generateSequence(
+                commit.parents.firstOrNull() to commit.parents.drop(1)
+            ) { (head, tail) ->
+                val first = tail.firstOrNull() ?: return@generateSequence null
+                first to tail.drop(1) + commits[head]?.parents.orEmpty()
+            }
+                .mapNotNull { (parent) -> parent }
                 .takeWhile { !marked(it, Flag.UNINTERESTING) }
                 .fold(this) { flags, parent ->
                     flags.mark(parent, Flag.UNINTERESTING)
@@ -163,7 +169,7 @@ class RevList(
         val oid = head.oid
         val tail = queue.drop(1).map { it.oid }
 
-        val queue = (tail + listOfNotNull(head.parent))
+        val queue = (tail + head.parents)
             .filterNot { flags.marked(it, Flag.SEEN) }
             .mapNotNull { commits[it] ?: repository.loadObject(it) as? Commit }
             .toSortedByDateDescendingSet()
