@@ -111,7 +111,7 @@ class PrintDiff(
                 header("+++ ${b.path}")
 
         val hunks = Diff.diffHunks(a.data?.utf8(), b.data?.utf8())
-        return head + hunks.joinToString(separator = "") { printDiffHunk(it) }
+        return head + hunks.joinToString(separator = "\n") { printDiffHunk(it) }
     }
 
     private fun printDiffHunk(hunk: Diff.Hunk): String {
