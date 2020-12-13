@@ -2,7 +2,8 @@ package com.github.arian.gikt.commands
 
 import com.github.arian.gikt.Revision
 import com.github.arian.gikt.commands.util.WriteCommit
-import com.github.arian.gikt.merge.Bases
+import com.github.arian.gikt.merge.Inputs
+import com.github.arian.gikt.merge.Resolve
 import kotlinx.cli.ArgType
 
 class Merge(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
@@ -18,29 +19,29 @@ class Merge(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
             exitProcess(1)
         }
 
-        val mergeOid = try {
-            Revision(repository, revision).oid
+        val inputs = try {
+            Inputs(repository, leftName = Revision.HEAD, rightName = revision)
         } catch (e: Revision.InvalidObject) {
             ctx.stderr.println("merge: $revision - not something we can merge")
             exitProcess(1)
         }
 
-        val headOid = repository.refs.readHead()
-            ?: run {
-                println("fatal: not a git repository: .git")
-                exitProcess(128)
-            }
-
-        val baseOid = Bases(repository.database, headOid, mergeOid).find().firstOrNull()
-
-        repository.index.loadForUpdate {
-            val treeDiff = repository.database.treeDiff(baseOid, mergeOid)
-            val migration = repository.migration(treeDiff)
-            migration.applyChanges(this)
-            writeUpdates()
-            writeCommit.writeCommit(this, listOf(headOid, mergeOid), message)
-        }
+        resolveMerge(inputs)
+        commitMerge(inputs, message)
 
         exitProcess(0)
+    }
+
+    private fun resolveMerge(inputs: Inputs) {
+        repository.index.loadForUpdate {
+            Resolve(repository, inputs).execute(this)
+            writeUpdates()
+        }
+    }
+
+    private fun commitMerge(inputs: Inputs, message: ByteArray) {
+        val index = repository.index.load()
+        val parents = listOf(inputs.leftOid, inputs.rightOid)
+        writeCommit.writeCommit(index, parents, message)
     }
 }
