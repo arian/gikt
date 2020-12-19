@@ -13,12 +13,6 @@ class Merge(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
 
     override fun run(): Nothing {
 
-        val message = ctx.stdin.readAllBytes()
-        if (message.isEmpty()) {
-            ctx.stderr.println("gikt: empty commit message")
-            exitProcess(1)
-        }
-
         val inputs = try {
             Inputs(repository, leftName = Revision.HEAD, rightName = revision)
         } catch (e: Revision.InvalidObject) {
@@ -26,10 +20,15 @@ class Merge(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
             exitProcess(1)
         }
 
-        resolveMerge(inputs)
-        commitMerge(inputs, message)
-
-        exitProcess(0)
+        when {
+            inputs.alreadyMerged() -> handleMergedAncestor()
+            inputs.fastForward() -> handleFastForward(inputs)
+            else -> {
+                resolveMerge(inputs)
+                commitMerge(inputs)
+                exitProcess(0)
+            }
+        }
     }
 
     private fun resolveMerge(inputs: Inputs) {
@@ -39,9 +38,37 @@ class Merge(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
         }
     }
 
-    private fun commitMerge(inputs: Inputs, message: ByteArray) {
+    private fun commitMerge(inputs: Inputs) {
+        val message = ctx.stdin.readAllBytes()
+        if (message.isEmpty()) {
+            ctx.stderr.println("gikt: empty commit message")
+            exitProcess(1)
+        }
+
         val index = repository.index.load()
         val parents = listOf(inputs.leftOid, inputs.rightOid)
         writeCommit.writeCommit(index, parents, message)
+    }
+
+    private fun handleMergedAncestor(): Nothing {
+        println("Already up to date.")
+        exitProcess(0)
+    }
+
+    private fun handleFastForward(inputs: Inputs): Nothing {
+        val a = inputs.leftOid.short
+        val b = inputs.rightOid.short
+
+        println("Updating $a..$b")
+        println("Fast-forward")
+
+        repository.index.loadForUpdate {
+            val treeDiff = repository.database.treeDiff(inputs.leftOid, inputs.rightOid)
+            repository.migration(treeDiff).applyChanges(this)
+            writeUpdates()
+        }
+        repository.refs.updateHead(inputs.rightOid)
+
+        exitProcess(0)
     }
 }

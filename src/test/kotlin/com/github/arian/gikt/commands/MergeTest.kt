@@ -25,11 +25,13 @@ internal class MergeTest {
     }
 
     /**
+     * ```
      * A     B     C
      * o<----o<----o<-----.
      *        \            \
      *         o<-----o<----o<==
      *         D      E     M
+     * ```
      */
     @Test
     fun `merge two branches`() {
@@ -80,5 +82,56 @@ internal class MergeTest {
         val execution = cmd.cmd("merge", "foo", stdin = "merge")
         assertEquals(1, execution.status)
         assertEquals("merge: foo - not something we can merge\n", execution.stderr)
+    }
+
+    /**
+     * ```
+     * A     B     C
+     * o<----o<----o
+     * ```
+     */
+    @Test
+    fun `commit was already merged`() {
+        val commitA = commitFiles("f.txt" to "1")
+        commitFiles("f.txt" to "2")
+        val commitC = commitFiles("f.txt" to "3")
+
+        val execution = cmd.cmd("merge", commitA.short, stdin = "merge")
+        assertEquals(0, execution.status)
+        assertEquals("Already up to date.\n", execution.stdout)
+
+        val head = requireNotNull(cmd.repository.refs.readHead())
+        assertEquals(commitC, head)
+    }
+
+    /**
+     * ```
+     * A     B
+     * o<----o [main] <== [HEAD]
+     *        \
+     *         o<---o [topic]
+     *         C    D
+     * ```
+     */
+    @Test
+    fun `BCA is equal to the HEAD`() {
+        commitFiles("f.txt" to "A")
+        val commitB = commitFiles("f.txt" to "B")
+        cmd.cmd("branch", "topic")
+        cmd.cmd("checkout", "topic")
+        commitFiles("f.txt" to "C")
+        val commitD = commitFiles("f.txt" to "D")
+        cmd.cmd("checkout", "main")
+
+        assertEquals(commitB, requireNotNull(cmd.repository.refs.readHead()))
+
+        val execution = cmd.cmd("merge", "topic", stdin = "merge")
+        assertEquals(0, execution.status)
+
+        assertEquals(commitD, requireNotNull(cmd.repository.refs.readHead()))
+        assertEquals(commitD, requireNotNull(cmd.repository.refs.readRef("main")))
+        assertEquals(commitD, requireNotNull(cmd.repository.refs.readRef("topic")))
+
+        assertEquals("D", cmd.readFile("f.txt"))
     }
 }

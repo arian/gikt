@@ -16,4 +16,10 @@ class Inputs(
     val baseOids: List<ObjectId> by lazy {
         Bases(repository.database, leftOid, rightOid).find()
     }
+
+    fun alreadyMerged(): Boolean =
+        baseOids == listOf(rightOid)
+
+    fun fastForward(): Boolean =
+        baseOids == listOf(leftOid)
 }
