@@ -14,7 +14,6 @@ import java.nio.file.Path
 import java.nio.file.StandardOpenOption
 import java.security.MessageDigest
 import java.util.SortedSet
-import kotlin.math.min
 
 private const val MAX_PATH_SIZE = 0xFFF
 private const val ENTRY_BLOCK = 8
@@ -51,18 +50,26 @@ private fun ByteArray.from16Bit(): Short =
     }
 
 data class Entry(
-    val key: String,
+    val key: Key,
     val oid: ObjectId,
     val stat: FileStat
 ) {
 
-    constructor(path: Path, oid: ObjectId, stat: FileStat) : this(path.toString(), oid, stat)
+    constructor(path: Path, oid: ObjectId, stat: FileStat) : this(
+        key = Key(path.toString(), stage = 0),
+        oid = oid,
+        stat = stat
+    )
 
+    val name: String = key.name
+    val stage: Byte = key.stage
     val mode = Mode.fromStat(stat)
-    private val pathBytes = key.toByteArray()
-    private val flags = min(pathBytes.size, MAX_PATH_SIZE)
 
     val content: ByteArray by lazy {
+
+        val pathBytes = name.toByteArray()
+        val nameLength = pathBytes.size.coerceAtMost(MAX_PATH_SIZE)
+        val flags = (nameLength + ((stage.toInt() and 0x3) shl 12)) and 0xFFFF
 
         val bytes = arrayOf(
             stat.ctime.to32Bit(),
@@ -88,7 +95,14 @@ data class Entry(
         bytes + padding
     }
 
+    data class Key(val name: String, val stage: Byte) : Comparable<Key> {
+        override fun compareTo(other: Key): Int = keyComparator.compare(this, other)
+    }
+
     companion object {
+
+        private val keyComparator = compareBy<Key> { it.name }.thenBy { it.stage }
+
         fun parse(bytes: ByteArray): Entry {
             val ctime = bytes.copyOfRange(0, 4).from32Bit()
             val ctimeNS = bytes.copyOfRange(4, 8).from32Bit()
@@ -103,7 +117,9 @@ data class Entry(
             val oidBytes = bytes.copyOfRange(40, 60)
 
             val flags = bytes.copyOfRange(60, 62).from16Bit()
-            val pathBytes = bytes.copyOfRange(62, 62 + flags)
+            val pathBytesLength = flags.toInt() and MAX_PATH_SIZE
+            val pathBytes = bytes.copyOfRange(62, 62 + pathBytesLength)
+            val stage = flags.toInt() shr 12 and 0x3
 
             val oid = ObjectId(oidBytes)
             val stat = FileStat(
@@ -119,7 +135,7 @@ data class Entry(
                 size = size.toLong()
             )
 
-            return Entry(pathBytes.utf8(), oid, stat)
+            return Entry(Key(pathBytes.utf8(), stage.toByte()), oid, stat)
         }
     }
 
@@ -182,8 +198,8 @@ class ChecksumReader(file: Path) : Closeable {
 
 class Index(private val pathname: Path) {
 
-    private var entries: Map<String, Entry> = emptyMap()
-    private val keys: SortedSet<String> = sortedSetOf()
+    private var entries: Map<Entry.Key, Entry> = emptyMap()
+    private val keys: SortedSet<Entry.Key> = sortedSetOf()
     private var parents: Map<String, Set<String>> = emptyMap()
     private val lockfile = Lockfile(pathname)
     private var changed = false
@@ -196,14 +212,17 @@ class Index(private val pathname: Path) {
         changed = true
     }
 
+    private fun entryForPath(path: String, stage: Int = 0): Entry? =
+        entries[Entry.Key(path, stage.toByte())]
+
     private fun discardConflicts(path: Path) {
         path.parentPaths().forEach { removeEntry(it.toString()) }
         parents[path.toString()]?.forEach { removeEntry(it) }
     }
 
     private fun updateEntryStat(key: String, stat: FileStat) {
-        entries[key]?.also {
-            entries = entries + (key to it.copy(stat = stat))
+        entryForPath(key)?.also {
+            entries = entries + (it.key to it.copy(stat = stat))
             changed = true
         }
     }
@@ -218,7 +237,10 @@ class Index(private val pathname: Path) {
         tracked(it.toString())
 
     private fun tracked(key: String) =
-        entries.containsKey(key) || parents.containsKey(key)
+        trackedFile(key) || parents.containsKey(key)
+
+    private fun trackedFile(path: String) =
+        (0..3).any { stage -> entries.containsKey(Entry.Key(path, stage.toByte())) }
 
     private fun writeUpdates(lock: Lockfile.Ref) {
         if (!changed) {
@@ -254,7 +276,7 @@ class Index(private val pathname: Path) {
     }
 
     open class Loaded internal constructor(private val index: Index) {
-        operator fun get(key: String): Entry? = index.entries[key]
+        operator fun get(key: String): Entry? = index.entries[Entry.Key(key, 0)]
         fun forEach(fn: (Entry) -> Unit) = index.forEach(fn)
         fun toList() = index.toList()
         fun tracked(it: String): Boolean = index.tracked(it)
@@ -321,25 +343,29 @@ class Index(private val pathname: Path) {
         keys.add(entry.key)
         entries = entries + (entry.key to entry)
 
-        Path.of(entry.key).parentPaths().forEach {
+        Path.of(entry.name).parentPaths().forEach {
             val dir = it.toString()
-            val value = parents.getOrDefault(dir, emptySet()) + entry.key
+            val value = parents.getOrDefault(dir, emptySet()) + entry.name
             parents = parents + (dir to value)
         }
     }
 
     private fun removeEntry(key: String) {
+        (0..3).forEach { stage -> removeEntry(Entry.Key(key, stage.toByte())) }
+    }
+
+    private fun removeEntry(key: Entry.Key) {
         val entry = entries[key] ?: return
 
         keys.remove(entry.key)
         entries = entries - entry.key
 
-        Path.of(entry.key).parentPaths().forEach {
+        Path.of(entry.key.name).parentPaths().forEach {
             val dir = it.toString()
             val value = parents[dir]
             if (value != null) {
                 parents = if (value.isNotEmpty()) {
-                    parents + (dir to (value - entry.key))
+                    parents + (dir to (value - entry.key.name))
                 } else {
                     parents - dir
                 }

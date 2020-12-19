@@ -38,7 +38,7 @@ class Inspector(private val repository: Repository) {
             !indexEntry.statMatch(stat) -> WorkspaceChange.Modified(indexEntry)
             indexEntry.timesMatch(stat) -> null
             else -> {
-                val data = repository.workspace.readFile(indexEntry.key)
+                val data = repository.workspace.readFile(indexEntry.name)
                 val blob = Blob(data)
 
                 if (blob.oid == indexEntry.oid) {

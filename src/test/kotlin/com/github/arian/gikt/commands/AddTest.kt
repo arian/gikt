@@ -12,7 +12,7 @@ class AddTest {
 
     private fun assertIndex(repo: Repository, expected: List<Pair<String, Boolean>>) {
         val index = repo.index.load()
-        assertEquals(expected, index.toList().map { Pair(it.key, it.stat.executable) })
+        assertEquals(expected, index.toList().map { Pair(it.name, it.stat.executable) })
     }
 
     @BeforeEach

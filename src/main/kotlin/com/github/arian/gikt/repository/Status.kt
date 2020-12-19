@@ -29,8 +29,8 @@ class Status(private val repository: Repository) {
         override val key: String,
         override val changeType: ChangeType
     ) : Change {
-        data class Modified(val entry: Entry) : WorkspaceChange(entry.key, ChangeType.MODIFIED)
-        data class Deleted(val entry: Entry) : WorkspaceChange(entry.key, ChangeType.DELETED)
+        data class Modified(val entry: Entry) : WorkspaceChange(entry.name, ChangeType.MODIFIED)
+        data class Deleted(val entry: Entry) : WorkspaceChange(entry.name, ChangeType.DELETED)
 
         override fun compareTo(other: Change) = key.compareTo(other.key)
     }
@@ -40,12 +40,12 @@ class Status(private val repository: Repository) {
         override val changeType: ChangeType
     ) : Change {
 
-        data class Added(val entry: Entry) : IndexChange(entry.key, ChangeType.ADDED)
+        data class Added(val entry: Entry) : IndexChange(entry.name, ChangeType.ADDED)
 
         data class Modified(
             val entry: Entry,
             val treeEntry: TreeEntry
-        ) : IndexChange(entry.key, ChangeType.MODIFIED)
+        ) : IndexChange(entry.name, ChangeType.MODIFIED)
 
         data class Deleted(
             val treeEntry: TreeEntry
@@ -154,7 +154,7 @@ class Status(private val repository: Repository) {
         scan: Scan,
         entry: Entry
     ): Changes? {
-        val stat = scan.stats[entry.key] ?: return Changes.workspace(WorkspaceChange.Deleted(entry))
+        val stat = scan.stats[entry.name] ?: return Changes.workspace(WorkspaceChange.Deleted(entry))
 
         return when (inspector.compareIndexToWorkspace(entry, stat)) {
             is Inspector.WorkspaceChange.Modified ->
@@ -163,7 +163,7 @@ class Status(private val repository: Repository) {
                 null
             null -> {
                 if (index is Index.Updater) {
-                    index.updateEntryStat(entry.key, stat)
+                    index.updateEntryStat(entry.name, stat)
                 }
                 null
             }
@@ -193,7 +193,7 @@ class Status(private val repository: Repository) {
         }
 
     private fun checkIndexEntryAgainstHeadTree(tree: Map<String, TreeEntry>, entry: Entry): Changes? {
-        val treeEntry = tree[entry.key]
+        val treeEntry = tree[entry.name]
         return when (val status = inspector.compareTreeToIndex(treeEntry, entry)) {
             is Inspector.IndexChange.Added ->
                 Changes.index(IndexChange.Added(entry))

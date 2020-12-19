@@ -63,7 +63,7 @@ class Diff(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
 
     private fun fromIndex(entry: Entry): Target {
         val blob = repository.loadObject(entry.oid)
-        return Target(entry.key, entry.oid, entry.mode, blob.data)
+        return Target(entry.name, entry.oid, entry.mode, blob.data)
     }
 
     private fun fromFile(path: String, scan: Status.Scan): Target {

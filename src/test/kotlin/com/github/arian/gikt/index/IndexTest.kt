@@ -57,7 +57,7 @@ class IndexTest(private val fileSystemProvider: FileSystemExtension.FileSystemPr
         }
 
         val loaded = index.load()
-        assertEquals(listOf("alice.txt", "bob.txt", "nested/inner/clara.txt"), loaded.toList().map { it.key })
+        assertEquals(listOf("alice.txt", "bob.txt", "nested/inner/clara.txt"), loaded.toList().map { it.name })
         assertTrue(loaded.tracked(rel("alice.txt")))
         assertTrue(loaded.tracked(rel("bob.txt")))
         assertTrue(loaded.tracked(rel("nested/inner")))
@@ -74,7 +74,7 @@ class IndexTest(private val fileSystemProvider: FileSystemExtension.FileSystemPr
             writeUpdates()
         }
 
-        assertEquals(listOf("alice.txt/nested.txt", "bob.txt"), index.load().toList().map { it.key })
+        assertEquals(listOf("alice.txt/nested.txt", "bob.txt"), index.load().toList().map { it.name })
     }
 
     @Test
@@ -88,7 +88,7 @@ class IndexTest(private val fileSystemProvider: FileSystemExtension.FileSystemPr
             writeUpdates()
         }
 
-        assertEquals(listOf("alice.txt", "nested"), index.load().toList().map { it.key })
+        assertEquals(listOf("alice.txt", "nested"), index.load().toList().map { it.name })
     }
 
     @Test
@@ -105,7 +105,7 @@ class IndexTest(private val fileSystemProvider: FileSystemExtension.FileSystemPr
             writeUpdates()
         }
 
-        assertEquals(listOf("alice.txt", "nested"), index.load().toList().map { it.key })
+        assertEquals(listOf("alice.txt", "nested"), index.load().toList().map { it.name })
     }
 
     @Test
@@ -151,7 +151,7 @@ class IndexTest(private val fileSystemProvider: FileSystemExtension.FileSystemPr
             writeUpdates()
         }
 
-        assertEquals(listOf("alice.txt"), index.load().toList().map { it.key })
+        assertEquals(listOf("alice.txt"), index.load().toList().map { it.name })
     }
 
     @Test
@@ -197,7 +197,7 @@ class IndexTest(private val fileSystemProvider: FileSystemExtension.FileSystemPr
                 FileStat(executable = true)
             )
 
-            assertEquals(it, entry.key)
+            assertEquals(Entry.Key(it, 0.toByte()), entry.key)
             assertEquals(0, entry.content.size % 8)
             assertEquals(0.toByte(), entry.content.last())
         }
@@ -234,7 +234,7 @@ class IndexTest(private val fileSystemProvider: FileSystemExtension.FileSystemPr
             writeUpdates()
         }
 
-        val list = index.load().toList().map { it.key }
+        val list = index.load().toList().map { it.name }
 
         assertEquals(
             listOf(
@@ -271,6 +271,16 @@ class IndexTest(private val fileSystemProvider: FileSystemExtension.FileSystemPr
     }
 
     @Test
+    fun `entry stage`() {
+        val entry = Entry(
+            Entry.Key("a", stage = 1),
+            ObjectId("1234512345123451234512345123451234512345"),
+            FileStat()
+        )
+        assertEquals(1.toByte(), entry.stage)
+    }
+
+    @Test
     fun `entry content ends with zero-byte`() {
         val path = workspacePath.resolve("a")
 
@@ -288,10 +298,8 @@ class IndexTest(private val fileSystemProvider: FileSystemExtension.FileSystemPr
 
     @Test
     fun `write and parse entry`() {
-        val path = workspacePath.resolve("a")
-
         val entry = Entry(
-            path.relativeTo(workspacePath),
+            Entry.Key("a", stage = 3),
             ObjectId("1234512345123451234512345123451234512345"),
             FileStat(executable = true)
         )
@@ -302,5 +310,7 @@ class IndexTest(private val fileSystemProvider: FileSystemExtension.FileSystemPr
 
         assertEquals(entry.key, parsed.key)
         assertEquals(entry.oid, parsed.oid)
+        assertEquals(3.toByte(), parsed.stage)
+        assertEquals("a", parsed.name)
     }
 }

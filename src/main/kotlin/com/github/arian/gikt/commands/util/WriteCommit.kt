@@ -29,7 +29,7 @@ class WriteCommit(
 
     private fun writeTree(index: Index.Loaded): Tree {
         val entries = index.toList().map {
-            val path = repository.relativePath(repository.resolvePath(it.key))
+            val path = repository.relativePath(repository.resolvePath(it.name))
             Entry(path, it.stat, it.oid)
         }
         return repository.buildTree(entries).also { tree ->
