@@ -14,6 +14,7 @@ import java.nio.file.Path
 import java.nio.file.StandardOpenOption
 import java.security.MessageDigest
 import java.util.SortedSet
+import com.github.arian.gikt.database.Entry as DbEntry
 
 private const val MAX_PATH_SIZE = 0xFFF
 private const val ENTRY_BLOCK = 8
@@ -137,6 +138,16 @@ data class Entry(
 
             return Entry(Key(pathBytes.utf8(), stage.toByte()), oid, stat)
         }
+
+        fun createFromDb(item: DbEntry, n: Int): Entry =
+            Entry(
+                key = Key(item.name.toString(), n.toByte()),
+                stat = FileStat(
+                    executable = item.mode.isExecutable(),
+                    directory = item.mode.isTree(),
+                ),
+                oid = item.oid
+            )
     }
 
     fun statMatch(stat: FileStat): Boolean {
@@ -206,9 +217,23 @@ class Index(private val pathname: Path) {
 
     private fun add(path: Path, oid: ObjectId, stat: FileStat) {
         require(!path.isAbsolute) { "Path should be relative to workspace path" }
-        val entry = Entry(path, oid, stat)
+        val entry = Entry(Entry.Key(path.toString(), stage = 0), oid, stat)
         discardConflicts(path)
         storeEntry(entry)
+        changed = true
+    }
+
+    private fun addConflictSet(path: Path, items: List<DbEntry?>) {
+        require(!path.isAbsolute) { "Path should be relative to workspace path" }
+
+        removeEntry(Entry.Key(path.toString(), 0))
+
+        items.forEachIndexed { n, item ->
+            item ?: return@forEachIndexed
+            val entry = Entry.createFromDb(item, n + 1)
+            storeEntry(entry)
+        }
+
         changed = true
     }
 
@@ -242,6 +267,9 @@ class Index(private val pathname: Path) {
     private fun trackedFile(path: String) =
         (0..3).any { stage -> entries.containsKey(Entry.Key(path, stage.toByte())) }
 
+    private fun conflict() =
+        entries.values.any { it.stage > 0 }
+
     private fun writeUpdates(lock: Lockfile.Ref) {
         if (!changed) {
             lock.rollback()
@@ -262,6 +290,7 @@ class Index(private val pathname: Path) {
 
     class Updater internal constructor(private val index: Index, private val lock: Lockfile.Ref) : Loaded(index) {
         fun add(path: Path, oid: ObjectId, stat: FileStat) = index.add(path, oid, stat)
+        fun addConflictSet(path: Path, items: List<DbEntry>) = index.addConflictSet(path, items)
         fun remove(path: Path) = index.remove(path)
         fun updateEntryStat(key: String, stat: FileStat) = index.updateEntryStat(key, stat)
         fun writeUpdates() = index.writeUpdates(lock)
@@ -281,6 +310,7 @@ class Index(private val pathname: Path) {
         fun toList() = index.toList()
         fun tracked(it: String): Boolean = index.tracked(it)
         fun tracked(it: Path): Boolean = index.tracked(it)
+        fun conflict(): Boolean = index.conflict()
     }
 
     fun load(): Loaded {

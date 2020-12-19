@@ -5,6 +5,10 @@ enum class Mode(val mode: String, val asInt: Int) {
     EXECUTABLE("100755", 33261),
     TREE("40000", 16384);
 
+    fun isExecutable() = this == EXECUTABLE
+
+    fun isTree() = this == TREE
+
     companion object {
 
         fun parse(name: String): Mode? = values().find { it.mode == name }

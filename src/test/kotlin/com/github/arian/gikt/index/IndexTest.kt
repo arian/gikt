@@ -25,6 +25,7 @@ import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicBoolean
+import com.github.arian.gikt.database.Entry as DbEntry
 
 @ExtendWith(FileSystemExtension::class)
 class IndexTest(private val fileSystemProvider: FileSystemExtension.FileSystemProvider) {
@@ -251,6 +252,36 @@ class IndexTest(private val fileSystemProvider: FileSystemExtension.FileSystemPr
     }
 
     @Test
+    fun `add conflict set which clears stage-0 entries`() {
+        val indexPath = workspacePath.resolve("index")
+        val index = Index(indexPath)
+
+        val items = listOf(
+            DbEntry(rel("alice.txt"), stat, oid),
+            DbEntry(rel("alice.txt"), stat, oid),
+            DbEntry(rel("alice.txt"), stat, oid),
+        )
+
+        index.loadForUpdate {
+            add(rel("alice.txt"), oid, stat)
+            addConflictSet(rel("alice.txt"), items)
+            writeUpdates()
+        }
+
+        val loaded = index.load()
+        assertEquals(
+            listOf(
+                Entry.Key("alice.txt", 1),
+                Entry.Key("alice.txt", 2),
+                Entry.Key("alice.txt", 3),
+            ),
+            loaded.toList().map { it.key }
+        )
+        assertTrue(loaded.tracked(rel("alice.txt")))
+        assertTrue(loaded.conflict())
+    }
+
+    @Test
     fun `entry executable mode`() {
         val entry = Entry(
             workspacePath.resolve("a").relativeTo(workspacePath),
@@ -312,5 +343,20 @@ class IndexTest(private val fileSystemProvider: FileSystemExtension.FileSystemPr
         assertEquals(entry.oid, parsed.oid)
         assertEquals(3.toByte(), parsed.stage)
         assertEquals("a", parsed.name)
+    }
+
+    @Test
+    fun `from db entry`() {
+        val pathFull = workspacePath.resolve("a")
+        val path = pathFull.relativeTo(workspacePath)
+        val oid = ObjectId("1234512345123451234512345123451234512345")
+
+        val dbEntry = DbEntry(path, Mode.EXECUTABLE, oid)
+        val indexEntry = Entry.createFromDb(dbEntry, 3)
+
+        assertEquals(oid, indexEntry.oid)
+        assertEquals(3.toByte(), indexEntry.stage)
+        assertEquals("a", indexEntry.name)
+        assertEquals(true, indexEntry.stat.executable)
     }
 }
