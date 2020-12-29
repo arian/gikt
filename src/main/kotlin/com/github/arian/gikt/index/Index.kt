@@ -207,206 +207,235 @@ class ChecksumReader(file: Path) : Closeable {
     class EndOfFile(msg: String) : Exception(msg)
 }
 
-class Index(private val pathname: Path) {
+class Index(pathname: Path) {
 
-    private var entries: Map<Entry.Key, Entry> = emptyMap()
-    private val keys: SortedSet<Entry.Key> = sortedSetOf()
-    private var parents: Map<String, Set<String>> = emptyMap()
-    private val lockfile = Lockfile(pathname)
-    private var changed = false
+    private val impl = IndexImpl(pathname)
 
-    private fun add(path: Path, oid: ObjectId, stat: FileStat) {
-        require(!path.isAbsolute) { "Path should be relative to workspace path" }
-        val entry = Entry(Entry.Key(path.toString(), stage = 0), oid, stat)
-        discardConflicts(path)
-        storeEntry(entry)
-        changed = true
+    interface Loaded {
+        operator fun get(key: String): Entry?
+        fun forEach(fn: (Entry) -> Unit)
+        fun toList(): List<Entry>
+        fun tracked(key: String): Boolean
+        fun tracked(key: Path): Boolean
+        fun hasConflicts(): Boolean
     }
 
-    private fun addConflictSet(path: Path, items: List<TreeEntry?>) {
-        require(!path.isAbsolute) { "Path should be relative to workspace path" }
-
-        removeEntry(Entry.Key(path.toString(), 0))
-
-        items.forEachIndexed { n, item ->
-            item ?: return@forEachIndexed
-            val entry = Entry.createFromDb(item, n + 1)
-            storeEntry(entry)
-        }
-
-        changed = true
-    }
-
-    private fun entryForPath(path: String, stage: Int = 0): Entry? =
-        entries[Entry.Key(path, stage.toByte())]
-
-    private fun discardConflicts(path: Path) {
-        path.parentPaths().forEach { removeEntry(it.toString()) }
-        parents[path.toString()]?.forEach { removeEntry(it) }
-    }
-
-    private fun updateEntryStat(key: String, stat: FileStat) {
-        entryForPath(key)?.also {
-            entries = entries + (it.key to it.copy(stat = stat))
-            changed = true
-        }
-    }
-
-    private fun toList(): List<Entry> =
-        keys.map { requireNotNull(entries[it]) }.toList()
-
-    private fun forEach(fn: (Entry) -> Unit) =
-        toList().forEach(fn)
-
-    private fun tracked(it: Path) =
-        tracked(it.toString())
-
-    private fun tracked(key: String) =
-        trackedFile(key) || parents.containsKey(key)
-
-    private fun trackedFile(path: String) =
-        (0..3).any { stage -> entries.containsKey(Entry.Key(path, stage.toByte())) }
-
-    private fun hasConflicts() =
-        entries.values.any { it.stage > 0 }
-
-    private fun writeUpdates(lock: Lockfile.Ref) {
-        if (!changed) {
-            lock.rollback()
-            return
-        }
-
-        val writer = ChecksumWriter { lock.write(it) }
-
-        val header = SIGNATURE.toByteArray() + VERSION.to32Bit() + entries.size.to32Bit()
-        writer.write(header)
-
-        forEach { writer.write(it.content) }
-
-        writer.writeChecksum()
-
-        lock.commit()
-    }
-
-    class Updater internal constructor(private val index: Index, private val lock: Lockfile.Ref) : Loaded(index) {
-        fun add(path: Path, oid: ObjectId, stat: FileStat) = index.add(path, oid, stat)
-        fun addConflictSet(path: Path, items: List<TreeEntry?>) = index.addConflictSet(path, items)
-        fun remove(path: Path) = index.remove(path)
-        fun updateEntryStat(key: String, stat: FileStat) = index.updateEntryStat(key, stat)
-        fun writeUpdates() = index.writeUpdates(lock)
-        fun rollback() = lock.rollback()
-    }
-
-    fun <T> loadForUpdate(action: Updater.() -> T): T {
-        return lockfile.holdForUpdate {
-            load(it.path)
-            action(Updater(this, it))
-        }
-    }
-
-    open class Loaded internal constructor(private val index: Index) {
-        operator fun get(key: String): Entry? = index.entries[Entry.Key(key, 0)]
-        fun forEach(fn: (Entry) -> Unit) = index.forEach(fn)
-        fun toList() = index.toList()
-        fun tracked(it: String): Boolean = index.tracked(it)
-        fun tracked(it: Path): Boolean = index.tracked(it)
-        fun hasConflicts(): Boolean = index.hasConflicts()
+    private class LoadedImpl(private val indexImpl: IndexImpl) : Loaded {
+        override operator fun get(key: String): Entry? = indexImpl.get(key)
+        override fun forEach(fn: (Entry) -> Unit) = indexImpl.forEach(fn)
+        override fun toList(): List<Entry> = indexImpl.toList()
+        override fun tracked(key: String): Boolean = indexImpl.tracked(key)
+        override fun tracked(key: Path): Boolean = indexImpl.tracked(key)
+        override fun hasConflicts(): Boolean = indexImpl.hasConflicts()
     }
 
     fun load(): Loaded {
-        load(pathname)
-        return Loaded(this)
+        impl.load()
+        return LoadedImpl(impl)
     }
 
-    private fun load(lock: Path) {
-        clear()
-        openIndexFile(lock)?.use {
-            val count = readHeader(it)
-            readEntries(it, count)
-            it.verifyChecksum()
+    interface Updater : Loaded {
+        fun add(path: Path, oid: ObjectId, stat: FileStat)
+        fun addConflictSet(path: Path, items: List<TreeEntry?>)
+        fun remove(path: Path)
+        fun updateEntryStat(key: String, stat: FileStat)
+        fun writeUpdates()
+        fun rollback()
+    }
+
+    private class UpdaterImpl(
+        private val indexImpl: IndexImpl,
+        private val lock: Lockfile.Ref
+    ) : Loaded by LoadedImpl(indexImpl), Updater {
+        override fun add(path: Path, oid: ObjectId, stat: FileStat) = indexImpl.add(path, oid, stat)
+        override fun addConflictSet(path: Path, items: List<TreeEntry?>) = indexImpl.addConflictSet(path, items)
+        override fun remove(path: Path) = indexImpl.remove(path)
+        override fun updateEntryStat(key: String, stat: FileStat) = indexImpl.updateEntryStat(key, stat)
+        override fun writeUpdates() = indexImpl.writeUpdates(lock)
+        override fun rollback() = lock.rollback()
+    }
+
+    fun <T> loadForUpdate(action: Updater.() -> T): T {
+        return impl.lockfile.holdForUpdate {
+            impl.load()
+            action(UpdaterImpl(impl, it))
         }
     }
 
-    private fun clear() {
-        entries = emptyMap()
-        keys.clear()
-        parents = emptyMap()
-        changed = false
-    }
+    private class IndexImpl(private val pathname: Path) {
 
-    private fun openIndexFile(path: Path): ChecksumReader? {
-        return try {
-            ChecksumReader(path)
-        } catch (e: NoSuchFileException) {
-            null
-        }
-    }
+        private var entries: Map<Entry.Key, Entry> = emptyMap()
+        private val keys: SortedSet<Entry.Key> = sortedSetOf()
+        private var parents: Map<String, Set<String>> = emptyMap()
+        val lockfile = Lockfile(pathname)
+        private var changed = false
 
-    private fun readHeader(checksum: ChecksumReader): Int {
+        fun get(key: String): Entry? =
+            entries[Entry.Key(key, 0)]
 
-        val signature = checksum.read(4)
-        if (!signature.contentEquals(SIGNATURE.toByteArray())) {
-            throw IllegalStateException("Signature expected '$SIGNATURE' but found ${signature.utf8()}")
+        fun add(path: Path, oid: ObjectId, stat: FileStat) {
+            require(!path.isAbsolute) { "Path should be relative to workspace path" }
+            val entry = Entry(Entry.Key(path.toString(), stage = 0), oid, stat)
+            discardConflicts(path)
+            storeEntry(entry)
+            changed = true
         }
 
-        val version = checksum.read(4).from32Bit()
-        if (version != VERSION) {
-            throw IllegalStateException("Version expected '$VERSION' but found $version")
-        }
+        fun addConflictSet(path: Path, items: List<TreeEntry?>) {
+            require(!path.isAbsolute) { "Path should be relative to workspace path" }
 
-        return checksum.read(4).from32Bit()
-    }
+            removeEntry(Entry.Key(path.toString(), 0))
 
-    private fun readEntries(reader: ChecksumReader, count: Int) {
-        repeat(count) {
-            var entry = reader.read(ENTRY_MIN_SIZE)
-
-            while (entry.last() != 0.toByte()) {
-                entry += reader.read(ENTRY_BLOCK)
+            items.forEachIndexed { n, item ->
+                item ?: return@forEachIndexed
+                val entry = Entry.createFromDb(item, n + 1)
+                storeEntry(entry)
             }
 
-            storeEntry(Entry.parse(entry))
+            changed = true
         }
-    }
 
-    private fun storeEntry(entry: Entry) {
-        keys.add(entry.key)
-        entries = entries + (entry.key to entry)
+        private fun entryForPath(path: String, stage: Int = 0): Entry? =
+            entries[Entry.Key(path, stage.toByte())]
 
-        Path.of(entry.name).parentPaths().forEach {
-            val dir = it.toString()
-            val value = parents.getOrDefault(dir, emptySet()) + entry.name
-            parents = parents + (dir to value)
+        private fun discardConflicts(path: Path) {
+            path.parentPaths().forEach { removeEntry(it.toString()) }
+            parents[path.toString()]?.forEach { removeEntry(it) }
         }
-    }
 
-    private fun removeEntry(key: String) {
-        (0..3).forEach { stage -> removeEntry(Entry.Key(key, stage.toByte())) }
-    }
+        fun updateEntryStat(key: String, stat: FileStat) {
+            entryForPath(key)?.also {
+                entries = entries + (it.key to it.copy(stat = stat))
+                changed = true
+            }
+        }
 
-    private fun removeEntry(key: Entry.Key) {
-        val entry = entries[key] ?: return
+        fun toList(): List<Entry> =
+            keys.map { requireNotNull(entries[it]) }.toList()
 
-        keys.remove(entry.key)
-        entries = entries - entry.key
+        fun forEach(fn: (Entry) -> Unit) =
+            toList().forEach(fn)
 
-        Path.of(entry.key.name).parentPaths().forEach {
-            val dir = it.toString()
-            val value = parents[dir]
-            if (value != null) {
-                parents = if (value.isNotEmpty()) {
-                    parents + (dir to (value - entry.key.name))
-                } else {
-                    parents - dir
+        fun tracked(key: Path) =
+            tracked(key.toString())
+
+        fun tracked(key: String) =
+            trackedFile(key) || parents.containsKey(key)
+
+        private fun trackedFile(path: String) =
+            (0..3).any { stage -> entries.containsKey(Entry.Key(path, stage.toByte())) }
+
+        fun hasConflicts() =
+            entries.values.any { it.stage > 0 }
+
+        fun writeUpdates(lock: Lockfile.Ref) {
+            if (!changed) {
+                lock.rollback()
+                return
+            }
+
+            val writer = ChecksumWriter { lock.write(it) }
+
+            val header = SIGNATURE.toByteArray() + VERSION.to32Bit() + entries.size.to32Bit()
+            writer.write(header)
+
+            forEach { writer.write(it.content) }
+
+            writer.writeChecksum()
+
+            lock.commit()
+        }
+
+        fun load() {
+            clear()
+            openIndexFile(pathname)?.use {
+                val count = readHeader(it)
+                readEntries(it, count)
+                it.verifyChecksum()
+            }
+        }
+
+        private fun clear() {
+            entries = emptyMap()
+            keys.clear()
+            parents = emptyMap()
+            changed = false
+        }
+
+        private fun openIndexFile(path: Path): ChecksumReader? {
+            return try {
+                ChecksumReader(path)
+            } catch (e: NoSuchFileException) {
+                null
+            }
+        }
+
+        private fun readHeader(checksum: ChecksumReader): Int {
+
+            val signature = checksum.read(4)
+            if (!signature.contentEquals(SIGNATURE.toByteArray())) {
+                throw IllegalStateException("Signature expected '$SIGNATURE' but found ${signature.utf8()}")
+            }
+
+            val version = checksum.read(4).from32Bit()
+            if (version != VERSION) {
+                throw IllegalStateException("Version expected '$VERSION' but found $version")
+            }
+
+            return checksum.read(4).from32Bit()
+        }
+
+        private fun readEntries(reader: ChecksumReader, count: Int) {
+            repeat(count) {
+                var entry = reader.read(ENTRY_MIN_SIZE)
+
+                while (entry.last() != 0.toByte()) {
+                    entry += reader.read(ENTRY_BLOCK)
+                }
+
+                storeEntry(Entry.parse(entry))
+            }
+        }
+
+        private fun storeEntry(entry: Entry) {
+            keys.add(entry.key)
+            entries = entries + (entry.key to entry)
+
+            Path.of(entry.name).parentPaths().forEach {
+                val dir = it.toString()
+                val value = parents.getOrDefault(dir, emptySet()) + entry.name
+                parents = parents + (dir to value)
+            }
+        }
+
+        private fun removeEntry(key: String) {
+            (0..3).forEach { stage -> removeEntry(Entry.Key(key, stage.toByte())) }
+        }
+
+        private fun removeEntry(key: Entry.Key) {
+            val entry = entries[key] ?: return
+
+            keys.remove(entry.key)
+            entries = entries - entry.key
+
+            Path.of(entry.key.name).parentPaths().forEach {
+                val dir = it.toString()
+                val value = parents[dir]
+                if (value != null) {
+                    parents = if (value.isNotEmpty()) {
+                        parents + (dir to (value - entry.key.name))
+                    } else {
+                        parents - dir
+                    }
                 }
             }
         }
-    }
 
-    private fun remove(path: Path) {
-        val name = path.toString()
-        parents[name]?.forEach { child -> removeEntry(child) }
-        removeEntry(name)
-        changed = true
+        fun remove(path: Path) {
+            val name = path.toString()
+            parents[name]?.forEach { child -> removeEntry(child) }
+            removeEntry(name)
+            changed = true
+        }
     }
 }
