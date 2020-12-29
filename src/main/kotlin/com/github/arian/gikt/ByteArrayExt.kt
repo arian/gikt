@@ -8,7 +8,7 @@ import java.util.zip.DeflaterInputStream
 import java.util.zip.Inflater
 import java.util.zip.InflaterInputStream
 
-fun ByteArray.utf8() = toString(Charsets.UTF_8)
+fun ByteArray.utf8() = decodeToString()
 
 fun ByteArray.sha1(): ByteArray {
     val data = this

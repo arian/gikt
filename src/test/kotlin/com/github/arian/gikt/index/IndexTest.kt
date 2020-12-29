@@ -6,6 +6,7 @@ import com.github.arian.gikt.Mode
 import com.github.arian.gikt.createDirectory
 import com.github.arian.gikt.database.Blob
 import com.github.arian.gikt.database.ObjectId
+import com.github.arian.gikt.database.ParsedTreeEntry
 import com.github.arian.gikt.database.toHexString
 import com.github.arian.gikt.delete
 import com.github.arian.gikt.exists
@@ -278,7 +279,36 @@ class IndexTest(private val fileSystemProvider: FileSystemExtension.FileSystemPr
             loaded.toList().map { it.key }
         )
         assertTrue(loaded.tracked(rel("alice.txt")))
-        assertTrue(loaded.conflict())
+        assertTrue(loaded.hasConflicts())
+    }
+
+    @Test
+    fun `add sparse conflict set`() {
+        val indexPath = workspacePath.resolve("index")
+        val index = Index(indexPath)
+
+        val items = listOf(
+            ParsedTreeEntry(rel("alice.txt"), rel("alice.txt"), Mode.REGULAR, oid),
+            null,
+            DbEntry(rel("alice.txt"), stat, oid),
+        )
+
+        index.loadForUpdate {
+            add(rel("alice.txt"), oid, stat)
+            addConflictSet(rel("alice.txt"), items)
+            writeUpdates()
+        }
+
+        val loaded = index.load()
+        assertEquals(
+            listOf(
+                Entry.Key("alice.txt", 1),
+                Entry.Key("alice.txt", 3),
+            ),
+            loaded.toList().map { it.key }
+        )
+        assertTrue(loaded.tracked(rel("alice.txt")))
+        assertTrue(loaded.hasConflicts())
     }
 
     @Test

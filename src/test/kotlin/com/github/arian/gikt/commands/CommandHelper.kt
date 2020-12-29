@@ -1,5 +1,6 @@
 package com.github.arian.gikt.commands
 
+import com.github.arian.gikt.Mode
 import com.github.arian.gikt.copyTo
 import com.github.arian.gikt.createDirectory
 import com.github.arian.gikt.database.ObjectId
@@ -13,6 +14,7 @@ import com.github.arian.gikt.makeUnreadable
 import com.github.arian.gikt.mkdirp
 import com.github.arian.gikt.readText
 import com.github.arian.gikt.repository.Repository
+import com.github.arian.gikt.stat
 import com.github.arian.gikt.touch
 import com.github.arian.gikt.write
 import com.github.marschall.memoryfilesystem.MemoryFileSystemBuilder
@@ -61,6 +63,9 @@ class CommandHelper : Closeable {
     fun readFile(name: String): String =
         root.resolve(name).readText()
 
+    fun readFileMode(name: String): Mode =
+        root.resolve(name).stat().let(Mode.Companion::fromStat)
+
     fun copy(source: String, target: String): Path =
         root.resolve(source).copyTo(root.resolve(target))
 
@@ -93,9 +98,10 @@ class CommandHelper : Closeable {
         cmd("init")
     }
 
-    fun commit(msg: String, timeOffset: Long = 0) {
+    fun commit(msg: String, timeOffset: Long = 0): ObjectId {
         val execution = cmd("commit", env = defaultEnv, stdin = msg, timeOffset = timeOffset)
         assertEquals(0, execution.status)
+        return requireNotNull(repository.refs.readHead())
     }
 
     fun commitFile(

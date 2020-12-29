@@ -32,9 +32,14 @@ class Merge(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
     }
 
     private fun resolveMerge(inputs: Inputs) {
-        repository.index.loadForUpdate {
+        val mergeHasConflicts = repository.index.loadForUpdate {
             Resolve(repository, inputs).execute(this)
             writeUpdates()
+            hasConflicts()
+        }
+        if (mergeHasConflicts) {
+            println("Automatic merge failed; fix conflicts and then commit the result.")
+            exitProcess(1)
         }
     }
 
