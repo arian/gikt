@@ -8,10 +8,13 @@ import com.github.arian.gikt.database.TreeDiffMap
 import com.github.arian.gikt.database.TreeDiffMapValue
 import com.github.arian.gikt.database.TreeEntry
 import com.github.arian.gikt.index.Index
+import com.github.arian.gikt.parentPaths
 import com.github.arian.gikt.repository.Repository
 import java.nio.file.Path
 
 typealias Conflicts = Map<Path, Resolve.Conflict<TreeEntry>>
+typealias Untracked = Pair<Path, TreeEntry>
+typealias Untrackeds = Map<Path, TreeEntry>
 
 class Resolve(
     private val repository: Repository,
@@ -19,12 +22,13 @@ class Resolve(
 ) {
 
     fun execute(index: Index.Updater) {
-        val (cleanDiffs, conflicts) = prepareTreeDiffs()
+        val (cleanDiffs, conflicts, untracked) = prepareTreeDiffs()
 
         val migration = repository.migration(cleanDiffs)
         migration.applyChanges(index)
 
         addConflictsToIndex(index, conflicts)
+        writeUntrackedFiles(untracked)
     }
 
     private fun addConflictsToIndex(index: Index.Updater, conflicts: Conflicts) {
@@ -33,7 +37,15 @@ class Resolve(
         }
     }
 
-    private fun prepareTreeDiffs(): Pair<TreeDiffMap, Conflicts> {
+    private fun writeUntrackedFiles(untracked: Untrackeds) {
+        untracked.forEach { (path, item) ->
+            when (val blob = repository.loadObject(item.oid)) {
+                is Blob -> repository.workspace.writeFile(path, blob.data)
+            }
+        }
+    }
+
+    private fun prepareTreeDiffs(): Triple<TreeDiffMap, Conflicts, Untrackeds> {
         val baseOid = inputs.baseOids.firstOrNull()
         val leftDiff = repository.database.treeDiff(baseOid, inputs.leftOid)
         val rightDiff = repository.database.treeDiff(baseOid, inputs.rightOid)
@@ -42,9 +54,18 @@ class Resolve(
             .mapNotNull { diff -> samePathConflict(leftDiff, diff) }
             .unzip()
 
-        val cleanDiffs: TreeDiffMap = diffs.associateBy { it.path }
-        val conflicts: Conflicts = allConflicts.filterNotNull().associateBy { it.path }
-        return Pair(cleanDiffs, conflicts)
+        val fileDirConflictsLeft = rightDiff.values.flatMap { fileDirConflict(it, leftDiff, inputs.rightName) }
+        val fileDirConflictsRight = leftDiff.values.flatMap { fileDirConflict(it, rightDiff, inputs.leftName) }
+        val fileDirConflicts = fileDirConflictsLeft + fileDirConflictsRight
+
+        val fileDirConflictParents = fileDirConflicts.map { (parent) -> parent }
+        val fileDirConflictConflicts = fileDirConflicts.associate { (parent, conflict) -> parent to conflict }
+
+        val cleanDiffs: TreeDiffMap = diffs.associateBy { it.path } - fileDirConflictParents
+        val conflicts: Conflicts = allConflicts.filterNotNull().associateBy { it.path } + fileDirConflictConflicts
+        val untrackeds: Untrackeds = fileDirConflicts.associate { (_, _, untracked) -> untracked }
+
+        return Triple(cleanDiffs, conflicts, untrackeds)
     }
 
     private fun samePathConflict(
@@ -145,6 +166,48 @@ class Resolve(
 
     private fun mergeModes(conflict: Conflict<Mode>): MergeResult<Mode> {
         return merge3(conflict, orElse = { MergeResult(false, it.left) })
+    }
+
+    private fun fileDirConflict(
+        diffValue: TreeDiffMapValue,
+        diff: TreeDiffMap,
+        name: String,
+    ): List<Triple<Path, Conflict<TreeEntry>, Untracked>> {
+
+        if (diffValue.newTreeEntry() == null) {
+            return emptyList()
+        }
+
+        return diffValue
+            .path
+            .parentPaths()
+            .mapNotNull { parent ->
+                val otherDiff = diff[parent]
+                val oldItem = otherDiff?.oldTreeEntry()
+                val newItem = otherDiff?.newTreeEntry() ?: return@mapNotNull null
+
+                val conflict = when (name) {
+                    inputs.leftName -> Conflict.Left(parent, oldItem, newItem)
+                    else -> Conflict.Right(parent, oldItem, newItem)
+                }
+
+                val rename = parent.resolveSibling("${parent.fileName}~$name")
+                val untracked: Untracked = rename to newItem
+
+                Triple(parent, conflict, untracked)
+            }
+    }
+
+    private fun TreeDiffMapValue.oldTreeEntry(): TreeEntry? = when (this) {
+        is TreeDiffMapValue.Addition -> null
+        is TreeDiffMapValue.Change -> old
+        is TreeDiffMapValue.Deletion -> old
+    }
+
+    private fun TreeDiffMapValue.newTreeEntry(): TreeEntry? = when (this) {
+        is TreeDiffMapValue.Addition -> new
+        is TreeDiffMapValue.Change -> new
+        is TreeDiffMapValue.Deletion -> null
     }
 
     data class MergeResult<T>(

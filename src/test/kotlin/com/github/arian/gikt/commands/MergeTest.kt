@@ -312,4 +312,38 @@ internal class MergeTest {
             assertEquals(Mode.EXECUTABLE, cmd.readFileMode("f.txt"))
         }
     }
+
+    @Nested
+    inner class FileDirectoryConflicts {
+
+        @Test
+        fun `added file and directory with same name`() {
+            commitFiles("a.txt" to "one")
+            cmd.cmd("branch", "topic")
+            cmd.cmd("checkout", "topic")
+            commitFiles("a/b/c/d/f.txt" to "two")
+            cmd.cmd("checkout", "main")
+            commitFiles("a/b/c/d/f.txt/g.txt" to "three")
+            val execution = cmd.cmd("merge", "topic", stdin = "merge file change")
+
+            assertEquals(1, execution.status)
+            assertEquals("three", cmd.readFile("a/b/c/d/f.txt/g.txt"))
+            assertEquals("two", cmd.readFile("a/b/c/d/f.txt~HEAD"))
+        }
+
+        @Test
+        fun `added directory and file with same name`() {
+            commitFiles("a.txt" to "one")
+            cmd.cmd("branch", "topic")
+            cmd.cmd("checkout", "topic")
+            commitFiles("a/b/c/d/f.txt/g.txt" to "three")
+            cmd.cmd("checkout", "main")
+            commitFiles("a/b/c/d/f.txt" to "two")
+            val execution = cmd.cmd("merge", "topic", stdin = "merge file change")
+
+            assertEquals(1, execution.status)
+            assertEquals("three", cmd.readFile("a/b/c/d/f.txt/g.txt"))
+            assertEquals("two", cmd.readFile("a/b/c/d/f.txt~topic"))
+        }
+    }
 }

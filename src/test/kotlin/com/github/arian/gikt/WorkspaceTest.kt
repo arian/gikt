@@ -15,7 +15,7 @@ class WorkspaceTest(private val fileSystemProvider: FileSystemExtension.FileSyst
 
     @BeforeEach
     fun before() {
-        path = fileSystemProvider.get().getPath("gitk-workspace").createDirectory()
+        path = fileSystemProvider.get().getPath("/gitk-workspace").createDirectory()
     }
 
     @Test
@@ -183,5 +183,21 @@ class WorkspaceTest(private val fileSystemProvider: FileSystemExtension.FileSyst
         }
 
         assertEquals("stat('secret.txt'): Permission denied", exception.message)
+    }
+
+    @Test
+    fun `writeFile file does not exist yet`() {
+        val workspace = Workspace(path)
+        val file = path.resolve("world.txt").relativeTo(path)
+        workspace.writeFile(file, "hello".toByteArray())
+        assertEquals("hello", path.resolve("world.txt").readText())
+    }
+
+    @Test
+    fun `writeFile for existing file`() {
+        val workspace = Workspace(path)
+        val file = path.resolve("world.txt").relativeTo(path).touch()
+        workspace.writeFile(file, "hello".toByteArray())
+        assertEquals("hello", path.resolve("world.txt").readText())
     }
 }

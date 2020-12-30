@@ -56,12 +56,10 @@ class Workspace(private val rootPath: Path) {
         val ignore = ignores(path) + rootIgnores
         val entries = path.listFiles().toSet() - ignore
 
-        return entries
-            .map {
-                val p = it.relativeTo(rootPath)
-                p to statFile(p)
-            }
-            .toMap()
+        return entries.associate {
+            val p = it.relativeTo(rootPath)
+            p to statFile(p)
+        }
     }
 
     fun readFile(it: String): ByteArray = readFileChecked(absolutePath(it))
@@ -71,6 +69,21 @@ class Workspace(private val rootPath: Path) {
         it.checkAccess(AccessMode.READ).readBytes()
     } catch (e: AccessDeniedException) {
         throw NoPermission("open('${it.relativeTo(rootPath)}'): Permission denied")
+    }
+
+    fun writeFile(path: Path, bytes: ByteArray) {
+        val absolute = absolutePath(path)
+        try {
+            absolute.checkAccess(AccessMode.WRITE)
+        } catch (e: Exception) {
+            when (e) {
+                is AccessDeniedException ->
+                    throw NoPermission("open('${path.relativeTo(rootPath)}'): Permission denied")
+                is NoSuchFileException -> Unit
+                else -> throw e
+            }
+        }
+        absolute.write(bytes)
     }
 
     fun statFile(it: Path): FileStat = statFileChecked(absolutePath(it))
@@ -115,9 +128,9 @@ class Workspace(private val rootPath: Path) {
             absolutePath(dirname).delete()
         } catch (e: IOException) {
             when (e) {
-                is DirectoryNotEmptyException -> {}
-                is NotDirectoryException -> {}
-                is NoSuchFileException -> {}
+                is DirectoryNotEmptyException -> Unit
+                is NotDirectoryException -> Unit
+                is NoSuchFileException -> Unit
                 else -> throw e
             }
         }
@@ -145,7 +158,8 @@ class Workspace(private val rootPath: Path) {
 
             try {
                 path.deleteRecursively()
-            } catch (e: NoSuchFileException) {}
+            } catch (e: NoSuchFileException) {
+            }
 
             path.write(
                 migration.blobData(entry.oid),
