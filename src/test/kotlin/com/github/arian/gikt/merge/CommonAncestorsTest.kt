@@ -45,11 +45,13 @@ internal class CommonAncestorsTest {
     }
 
     /**
+     * ```
      * (A) B*
      * o<--o
      *  \
      *   o
      *   C*
+     * ```
      */
     @Test
     fun `branched tree`() {
@@ -82,11 +84,13 @@ internal class CommonAncestorsTest {
     }
 
     /**
+     * ```
      * A   B   D   E*
      * o<--o<--o<--o
      *  \     /
      *   +---o<--o
      *      (C)  F*
+     * ```
      */
     @Test
     fun `merged history with further commits`() {
@@ -111,11 +115,13 @@ internal class CommonAncestorsTest {
     }
 
     /**
+     * ```
      * A   B   C    G    H*
      * o<--o<---o<---o<---o
      *      \       /
      *       o<---o<--o
      *     D     (E)  F*
+     * ```
      */
     @Test
     fun `branching and merging history`() {
@@ -142,6 +148,7 @@ internal class CommonAncestorsTest {
     }
 
     /**
+     * ```
      * A   B   C       J    K
      * o<--o<--o<------o<---o
      *      \         /
@@ -149,6 +156,7 @@ internal class CommonAncestorsTest {
      *    (D) \  E   F*
      *         o<----o
      *         G     H*
+     * ```
      */
     @Test
     fun `history with many candidates as common ancestor`() {
@@ -177,6 +185,7 @@ internal class CommonAncestorsTest {
     }
 
     /**
+     * ```
      * A   (B)    C         H    J*
      * o<--o<-----o<--------o<---o
      *      \      \       /
@@ -184,6 +193,7 @@ internal class CommonAncestorsTest {
      *        \    D   (E)\
      *         o<----------o<---o
      *         F           G    K*
+     * ```
      */
     @Test
     fun `history with many candidate common ancestors with weird dates`() {

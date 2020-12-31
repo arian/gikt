@@ -44,6 +44,7 @@ internal class BasesTest {
     }
 
     /**
+     * ```
      * A   (B)    C         J    K*
      * o<--o<-----o<--------o<---o
      *      \      \       /
@@ -51,6 +52,7 @@ internal class BasesTest {
      *        \    D   (E)\
      *         o<---o<-----o<---o
      *         F    G      H    L*
+     * ```
      */
     @Test
     fun `history with many candidates common ancestors with weird dates`() {

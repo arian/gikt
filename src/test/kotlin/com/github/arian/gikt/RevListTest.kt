@@ -277,11 +277,13 @@ internal class RevListTest {
     }
 
     /**
+     * ```
      * A   B   C   M
      * o<--o<--o<--o
      *  \         /
      *   o<--o<--+
      *   D   E
+     * ```
      */
     private inner class RepoWithCommits(val repository: Repository = repository()) {
 
@@ -404,6 +406,7 @@ internal class RevListTest {
     inner class MergedRepo {
 
         /**
+         * ```
          * A   B      C        D
          * o<--o<-----o<-------o
          *  \   \               \
@@ -411,6 +414,7 @@ internal class RevListTest {
          *    \  E   D   F   G   H   J
          *     o<--o
          *     K   L
+         * ```
          */
         private inner class Repo(
             val repository: Repository = repository(),
