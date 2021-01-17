@@ -328,7 +328,7 @@ internal class MergeTest {
 
             assertEquals(1, execution.status)
             assertEquals("three", cmd.readFile("a/b/c/d/f.txt/g.txt"))
-            assertEquals("two", cmd.readFile("a/b/c/d/f.txt~HEAD"))
+            assertEquals("two", cmd.readFile("a/b/c/d/f.txt~topic"))
         }
 
         @Test
@@ -343,7 +343,7 @@ internal class MergeTest {
 
             assertEquals(1, execution.status)
             assertEquals("three", cmd.readFile("a/b/c/d/f.txt/g.txt"))
-            assertEquals("two", cmd.readFile("a/b/c/d/f.txt~topic"))
+            assertEquals("two", cmd.readFile("a/b/c/d/f.txt~HEAD"))
         }
     }
 }

@@ -74,6 +74,7 @@ class Workspace(private val rootPath: Path) {
     fun writeFile(path: Path, bytes: ByteArray) {
         val absolute = absolutePath(path)
         try {
+            absolute.parent?.mkdirp()
             absolute.checkAccess(AccessMode.WRITE)
         } catch (e: Exception) {
             when (e) {

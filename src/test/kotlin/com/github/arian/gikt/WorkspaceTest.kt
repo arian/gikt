@@ -200,4 +200,12 @@ class WorkspaceTest(private val fileSystemProvider: FileSystemExtension.FileSyst
         workspace.writeFile(file, "hello".toByteArray())
         assertEquals("hello", path.resolve("world.txt").readText())
     }
+
+    @Test
+    fun `writeFile in nested folder`() {
+        val workspace = Workspace(path)
+        val file = path.resolve("hello/new/world.txt").relativeTo(path)
+        workspace.writeFile(file, "hello".toByteArray())
+        assertEquals("hello", path.resolve("hello/new/world.txt").readText())
+    }
 }

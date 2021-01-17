@@ -19,10 +19,15 @@ typealias Untrackeds = Map<Path, TreeEntry>
 class Resolve(
     private val repository: Repository,
     private val inputs: Inputs,
+    private val onProgress: (String) -> Unit = { }
 ) {
 
     fun execute(index: Index.Updater) {
         val (cleanDiffs, conflicts, untracked) = prepareTreeDiffs()
+
+        conflicts.forEach { (_, conflict) ->
+            logConflicts(conflict)
+        }
 
         val migration = repository.migration(cleanDiffs)
         migration.applyChanges(index)
@@ -50,19 +55,25 @@ class Resolve(
         val leftDiff = repository.database.treeDiff(baseOid, inputs.leftOid)
         val rightDiff = repository.database.treeDiff(baseOid, inputs.rightOid)
 
-        val (diffs, allConflicts) = rightDiff.values
-            .mapNotNull { diff -> samePathConflict(leftDiff, diff) }
-            .unzip()
-
-        val fileDirConflictsLeft = rightDiff.values.flatMap { fileDirConflict(it, leftDiff, inputs.rightName) }
-        val fileDirConflictsRight = leftDiff.values.flatMap { fileDirConflict(it, rightDiff, inputs.leftName) }
+        val fileDirConflictsLeft = rightDiff.values.flatMap { fileDirConflict(it, leftDiff, inputs.leftName) }
+        val fileDirConflictsRight = leftDiff.values.flatMap { fileDirConflict(it, rightDiff, inputs.rightName) }
         val fileDirConflicts = fileDirConflictsLeft + fileDirConflictsRight
 
         val fileDirConflictParents = fileDirConflicts.map { (parent) -> parent }
         val fileDirConflictConflicts = fileDirConflicts.associate { (parent, conflict) -> parent to conflict }
 
+        val (diffs, filePathConflicts) = rightDiff.values
+            .mapNotNull { diff ->
+                if (fileDirConflictConflicts.containsKey(diff.path)) {
+                    diff to null
+                } else {
+                    samePathConflict(leftDiff, diff)
+                }
+            }
+            .unzip()
+
         val cleanDiffs: TreeDiffMap = diffs.associateBy { it.path } - fileDirConflictParents
-        val conflicts: Conflicts = allConflicts.filterNotNull().associateBy { it.path } + fileDirConflictConflicts
+        val conflicts: Conflicts = filePathConflicts.filterNotNull().associateBy { it.path } + fileDirConflictConflicts
         val untrackeds: Untrackeds = fileDirConflicts.associate { (_, _, untracked) -> untracked }
 
         return Triple(cleanDiffs, conflicts, untrackeds)
@@ -95,6 +106,10 @@ class Resolve(
 
         if (conflict.sidesAreTheSame()) {
             return null
+        }
+
+        if (conflict is Conflict.Both) {
+            onProgress("Auto-merging $path")
         }
 
         val mergeBlobsResult = mergeBlobs(conflict.map { it.oid })
@@ -157,7 +172,7 @@ class Resolve(
     }
 
     private fun newlineForBlob(leftData: ByteArray): ByteArray {
-        return if (leftData.last().toChar() == '\n') {
+        return if (leftData.lastOrNull()?.toChar() == '\n') {
             ByteArray(0)
         } else {
             "\n".toByteArray()
@@ -178,21 +193,26 @@ class Resolve(
             return emptyList()
         }
 
-        return diffValue
-            .path
+        val path = diffValue.path
+
+        return path
             .parentPaths()
             .mapNotNull { parent ->
                 val otherDiff = diff[parent]
                 val oldItem = otherDiff?.oldTreeEntry()
                 val newItem = otherDiff?.newTreeEntry() ?: return@mapNotNull null
 
-                val conflict = when (name) {
-                    inputs.leftName -> Conflict.Left(parent, oldItem, newItem)
-                    else -> Conflict.Right(parent, oldItem, newItem)
-                }
-
                 val rename = parent.resolveSibling("${parent.fileName}~$name")
                 val untracked: Untracked = rename to newItem
+
+                val conflict = when (name) {
+                    inputs.leftName -> Conflict.Left(parent, oldItem, newItem, rename = rename)
+                    else -> Conflict.Right(parent, oldItem, newItem, rename = rename)
+                }
+
+                if (!diff.containsKey(path)) {
+                    onProgress("Adding $path")
+                }
 
                 Triple(parent, conflict, untracked)
             }
@@ -210,6 +230,47 @@ class Resolve(
         is TreeDiffMapValue.Deletion -> null
     }
 
+    private fun logConflicts(conflict: Conflict<TreeEntry>) {
+        val path = conflict.path
+        val rename = conflict.rename
+        when (conflict) {
+            is Conflict.Left -> {
+                if (conflict.base != null) {
+                    val renameLog = rename?.let { " at $it" } ?: ""
+                    onProgress(
+                        "CONFLICT (modify/delete): $path " +
+                            "deleted in ${inputs.rightName} and modified in ${inputs.leftName}. " +
+                            "Version ${inputs.leftName} of $path left in tree$renameLog."
+                    )
+                } else {
+                    onProgress(
+                        "CONFLICT (file/directory): There is a directory with name $path in ${inputs.rightName}. " +
+                            "Adding $path as $rename"
+                    )
+                }
+            }
+            is Conflict.Right -> {
+                if (conflict.base != null) {
+                    val renameLog = rename?.let { " at $it" } ?: ""
+                    onProgress(
+                        "CONFLICT (modify/delete): $path " +
+                            "deleted in ${inputs.leftName} and modified in ${inputs.rightName}. " +
+                            "Version ${inputs.rightName} of $path left in tree$renameLog."
+                    )
+                } else {
+                    onProgress(
+                        "CONFLICT (directory/file): There is a directory with name $path in ${inputs.leftName}. " +
+                            "Adding $path as $rename"
+                    )
+                }
+            }
+            is Conflict.Both -> {
+                val type = conflict.base?.let { "content" } ?: "add/add"
+                onProgress("CONFLICT ($type): Merge conflict in $path")
+            }
+        }
+    }
+
     data class MergeResult<T>(
         val isOk: Boolean,
         val value: T,
@@ -218,13 +279,24 @@ class Resolve(
     sealed class Conflict<T> {
         abstract val path: Path
         abstract val base: T?
+        abstract val rename: Path?
         abstract fun toList(): List<T?>
 
-        data class Left<T>(override val path: Path, override val base: T?, val left: T) : Conflict<T>() {
+        data class Left<T>(
+            override val path: Path,
+            override val base: T?,
+            val left: T,
+            override val rename: Path? = null,
+        ) : Conflict<T>() {
             override fun toList(): List<T?> = listOf(base, left, null)
         }
 
-        data class Right<T>(override val path: Path, override val base: T?, val right: T) : Conflict<T>() {
+        data class Right<T>(
+            override val path: Path,
+            override val base: T?,
+            val right: T,
+            override val rename: Path? = null,
+        ) : Conflict<T>() {
             override fun toList(): List<T?> = listOf(base, null, right)
         }
 
@@ -232,7 +304,8 @@ class Resolve(
             override val path: Path,
             override val base: T?,
             val left: T,
-            val right: T
+            val right: T,
+            override val rename: Path? = null,
         ) : Conflict<T>() {
             override fun toList(): List<T?> = listOf(base, left, right)
         }
