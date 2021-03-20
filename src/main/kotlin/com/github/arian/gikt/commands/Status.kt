@@ -28,7 +28,8 @@ class Status(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
     }
 
     private fun printResults(scan: Status.Scan) {
-        (scan.changes.all())
+        (scan.changes.all() + scan.conflicts.keys)
+            .toSortedSet()
             .forEach { println("${statusFor(scan, it)} $it") }
 
         scan.untracked
@@ -37,9 +38,14 @@ class Status(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
     }
 
     private fun statusFor(scan: Status.Scan, key: String): String {
-        val left = scan.changes.indexChange(key)?.changeType?.short ?: " "
-        val right = scan.changes.workspaceChange(key)?.changeType?.short ?: " "
-        return "$left$right"
+        val conflict = scan.conflicts[key]
+        return if (conflict != null) {
+            conflictStatusShort(conflict) ?: ""
+        } else {
+            val left = scan.changes.indexChange(key)?.changeType?.short ?: " "
+            val right = scan.changes.workspaceChange(key)?.changeType?.short ?: " "
+            "$left$right"
+        }
     }
 
     private fun printLongFormat(scan: Status.Scan) {
@@ -48,6 +54,14 @@ class Status(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
             scan.changes.indexChanges(),
             Style.GREEN,
             type = { longStatus(it.changeType).padEnd(12) },
+            name = { it.key }
+        )
+
+        printChanges(
+            "Unmerged paths",
+            scan.conflicts.entries.toSet(),
+            Style.RED,
+            type = { (conflictStatusLong(it.value) ?: "").padEnd(17) },
             name = { it.key }
         )
 
@@ -110,4 +124,26 @@ class Status(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
             else -> println("nothing to commit, working tree clean")
         }
     }
+
+    private fun conflictStatusLong(conflict: Set<Byte>): String? =
+        when (conflict) {
+            setOf(1.toByte(), 2.toByte(), 3.toByte()) -> "both modified:"
+            setOf(1.toByte(), 2.toByte()) -> "deleted by them:"
+            setOf(1.toByte(), 3.toByte()) -> "deleted by us:"
+            setOf(2.toByte(), 3.toByte()) -> "both added:"
+            setOf(2.toByte()) -> "added by us:"
+            setOf(3.toByte()) -> "added by them:"
+            else -> null
+        }
+
+    private fun conflictStatusShort(conflict: Set<Byte>): String? =
+        when (conflict) {
+            setOf(1.toByte(), 2.toByte(), 3.toByte()) -> "UU"
+            setOf(1.toByte(), 2.toByte()) -> "UD"
+            setOf(1.toByte(), 3.toByte()) -> "DU"
+            setOf(2.toByte(), 3.toByte()) -> "AA"
+            setOf(2.toByte()) -> "AU"
+            setOf(3.toByte()) -> "UA"
+            else -> null
+        }
 }

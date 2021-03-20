@@ -81,7 +81,8 @@ class Status(private val repository: Repository) {
     data class Scan(
         val stats: Map<String, FileStat> = emptyMap(),
         val changes: Changes = Changes.empty(),
-        val untracked: Set<String> = emptySet()
+        val untracked: Set<String> = emptySet(),
+        val conflicts: Map<String, Set<Byte>> = emptyMap(),
     ) {
         operator fun plus(scan: Scan) =
             copy(
@@ -130,10 +131,15 @@ class Status(private val repository: Repository) {
         scan: Scan,
         headTree: Map<String, TreeEntry>
     ): Scan {
-        val workspaceChanges = index.toList()
+
+        val entries = index.toList()
+
+        val workspaceChanges = entries
+            .filter { it.stage == 0.toByte() }
             .mapNotNull { checkIndexEntryAgainstWorkspace(index, scan, it) }
 
         val headChanges = index.toList()
+            .filter { it.stage == 0.toByte() }
             .mapNotNull { checkIndexEntryAgainstHeadTree(headTree, it) }
 
         val indexDeleted = headTree
@@ -142,11 +148,19 @@ class Status(private val repository: Repository) {
 
         val changes = workspaceChanges + headChanges + indexDeleted
 
-        if (changes.isEmpty()) {
-            return scan
-        }
+        val conflicts = entries
+            .filterNot { it.stage == 0.toByte() }
+            .groupBy { it.key.name }
+            .mapValues { (_, v) -> v.map { it.stage }.toSet() }
 
-        return scan.copy(changes = changes.reduce { acc, it -> acc + it })
+        return when {
+            changes.isEmpty() && conflicts.isEmpty() -> scan
+            changes.isEmpty() -> scan.copy(conflicts = conflicts)
+            else -> scan.copy(
+                changes = changes.reduce { acc, it -> acc + it },
+                conflicts = conflicts,
+            )
+        }
     }
 
     private fun checkIndexEntryAgainstWorkspace(

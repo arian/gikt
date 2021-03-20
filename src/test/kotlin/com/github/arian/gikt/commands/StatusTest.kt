@@ -304,4 +304,93 @@ class StatusTest {
             )
         }
     }
+
+    @Nested
+    inner class Conflicts {
+
+        @Test
+        fun `short format - both added`() {
+            cmd.commitFile("x")
+
+            cmd.cmd("branch", "topic")
+            cmd.cmd("checkout", "topic")
+
+            cmd.writeFile("a.txt", "a")
+            cmd.cmd("add", ".")
+            cmd.commit("write a to a.txt")
+
+            cmd.cmd("checkout", "main")
+            cmd.writeFile("a.txt", "A")
+            cmd.cmd("add", ".")
+            cmd.commit("write A to a.txt")
+
+            cmd.cmd("merge", "topic")
+
+            assertStatus(
+                """
+                |AA a.txt
+                """.trimMargin()
+            )
+        }
+
+        @Test
+        fun `long format`() {
+            cmd.touch("a.txt")
+            cmd.touch("c.txt")
+            cmd.touch("d.txt")
+            cmd.cmd("add", ".")
+            cmd.commit("initial commit")
+
+            // branch topic
+            cmd.cmd("branch", "topic")
+            cmd.cmd("checkout", "topic")
+
+            cmd.writeFile("a.txt", "a")
+            cmd.writeFile("b.txt", "b")
+            cmd.writeFile("c.txt", "c")
+            cmd.delete("d.txt")
+            cmd.writeFile("e/1.txt", "1")
+            cmd.writeFile("f", "f")
+            cmd.resetIndex()
+            cmd.commit("write a to a.txt")
+
+            // branch main
+            cmd.cmd("checkout", "main")
+            cmd.delete("a.txt")
+            cmd.writeFile("b.txt", "B")
+            cmd.writeFile("c.txt", "C")
+            cmd.writeFile("d.txt", "D")
+            cmd.writeFile("e", "E")
+            cmd.writeFile("f/1.txt", "1")
+            cmd.resetIndex()
+            cmd.commit("delete a.txt")
+
+            cmd.cmd("merge", "topic")
+
+            val execution = cmd.cmd("status")
+            assertEquals(0, execution.status)
+            assertEquals(
+                """
+                |Changes to be committed:
+                |
+                |${"\t"}new file:   e/1.txt
+                |
+                |Unmerged paths:
+                |
+                |${"\t"}deleted by us:   a.txt
+                |${"\t"}both added:      b.txt
+                |${"\t"}both modified:   c.txt
+                |${"\t"}deleted by them: d.txt
+                |${"\t"}added by us:     e
+                |${"\t"}added by them:   f
+                |
+                |Untracked files:
+                |
+                |${"\t"}f~topic
+                |${"\t"}e~HEAD
+                """.trimMargin(),
+                execution.stdout.trimEnd()
+            )
+        }
+    }
 }
