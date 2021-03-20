@@ -13,7 +13,7 @@ version = "0.0.1"
 val mainClassString = "com.github.arian.gikt.GiktKt"
 
 application {
-    mainClassName = mainClassString
+    mainClass.set(mainClassString)
 }
 
 tasks {
