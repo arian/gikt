@@ -2,10 +2,10 @@ import com.adarshr.gradle.testlogger.theme.ThemeType
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm") version "1.4.20"
+    kotlin("jvm") version "1.4.31"
     application
     id("com.adarshr.test-logger") version "2.1.1"
-    id("com.diffplug.spotless") version "5.8.2"
+    id("com.diffplug.spotless") version "5.11.0"
 }
 
 group = "com.github.arian"
@@ -55,10 +55,10 @@ tasks {
 
 spotless {
     kotlin {
-        ktlint("0.39.0")
+        ktlint("0.41.0")
     }
     kotlinGradle {
-        ktlint("0.39.0")
+        ktlint("0.41.0")
     }
 }
 
@@ -68,7 +68,7 @@ repositories {
 }
 
 dependencies {
-    implementation("org.jetbrains.kotlinx:kotlinx-cli:0.3.1")
-    testImplementation("org.junit.jupiter:junit-jupiter:5.7.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-cli:0.3.2")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.7.1")
     testImplementation("com.github.marschall:memoryfilesystem:2.1.0")
 }

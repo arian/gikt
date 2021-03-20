@@ -230,8 +230,7 @@ class Log(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
         private val oneline by cli.option(
             ArgType.Boolean,
             fullName = "oneline",
-            description =
-                """This is a shorthand for "--format=oneline --abbrev-commit" used together"""
+            description = """This is a shorthand for "--format=oneline --abbrev-commit" used together"""
         )
 
         val isAbbrevCommit: Boolean
@@ -248,8 +247,7 @@ class Log(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
         private val decorateOption by cli.option(
             ArgType.Choice<Decoration>(),
             fullName = "decorate",
-            description =
-                """Print out the ref names of any commits that are shown."""
+            description = """Print out the ref names of any commits that are shown."""
         ).default(Decoration.AUTO)
 
         private val noDecorate by cli.option(
