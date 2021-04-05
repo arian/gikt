@@ -28,8 +28,7 @@ class Status(ctx: CommandContext, name: String) : AbstractCommand(ctx, name) {
     }
 
     private fun printResults(scan: Status.Scan) {
-        (scan.changes.all() + scan.conflicts.keys)
-            .toSortedSet()
+        scan.allKeys()
             .forEach { println("${statusFor(scan, it)} $it") }
 
         scan.untracked

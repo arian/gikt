@@ -73,6 +73,7 @@ class Status(private val repository: Repository) {
 
         fun all(): Set<String> = (workspace.keys + index.keys).toSortedSet()
         fun workspaceChanges(): Set<WorkspaceChange> = workspace.values.toSortedSet()
+        internal fun workspaceChangesKeys(): Set<String> = workspace.keys.toSortedSet()
         fun indexChanges(): Set<IndexChange> = index.values.toSortedSet()
         fun indexChange(key: String) = index[key]
         fun workspaceChange(key: String) = workspace[key]
@@ -90,6 +91,12 @@ class Status(private val repository: Repository) {
                 changes = changes + scan.changes,
                 untracked = untracked + scan.untracked
             )
+
+        fun allKeys() =
+            (changes.all() + conflicts.keys).toSortedSet()
+
+        fun conflictsAndWorkspaceChanges() =
+            (changes.workspaceChangesKeys() + conflicts.keys).toSortedSet()
     }
 
     fun scan(index: Index.Loaded): Scan {

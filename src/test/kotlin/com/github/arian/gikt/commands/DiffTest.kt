@@ -4,6 +4,8 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 
 class DiffTest {
     private val cmd = CommandHelper()
@@ -11,9 +13,7 @@ class DiffTest {
     @BeforeEach
     fun before() {
         cmd.init()
-        cmd.writeFile("1.txt", "one")
-        cmd.cmd("add", ".")
-        cmd.commit("commit message")
+        cmd.commitFile(name = "1.txt", contents = "one", msg = "commit message")
     }
 
     private fun assertDiffExecution(expected: String, execution: CommandHelper.CommandTestExecution) {
@@ -181,6 +181,96 @@ class DiffTest {
             cmd.writeFile("1.txt", "changed")
             cmd.cmd("add", ".")
             assertDiffCached(expected = "", "--no-patch")
+        }
+    }
+
+    @Nested
+    inner class ConflictChanges {
+
+        private fun createMergeConflictChanges() {
+            cmd.commitFile("f.txt", "original")
+
+            cmd.cmd("branch", "topic")
+            cmd.cmd("checkout", "topic")
+            cmd.commitFile("f.txt", "topic")
+
+            cmd.cmd("checkout", "main")
+            cmd.commitFile("f.txt", "main")
+
+            cmd.cmd("merge", "topic")
+        }
+
+        @ParameterizedTest
+        @ValueSource(strings = ["--base", "-1"])
+        fun `show diff --base of a both modified change`(arg: String) {
+            createMergeConflictChanges()
+
+            assertDiff(
+                """
+                |* Unmerged path f.txt
+                |diff --git a/f.txt b/f.txt
+                |index 94f3610..9cc58b5 100644
+                |--- a/f.txt
+                |+++ b/f.txt
+                |@@ -1,1 +1,6 @@
+                |-original
+                |+<<<<<<< HEAD
+                |+main
+                |+=======
+                |+topic
+                |+>>>>>>> topic
+                |+
+                """.trimMargin(),
+                arg,
+            )
+        }
+
+        @ParameterizedTest
+        @ValueSource(strings = ["--ours", "-2"])
+        fun `show diff --ours of a both modified change`(arg: String) {
+            createMergeConflictChanges()
+
+            assertDiff(
+                """
+                |* Unmerged path f.txt
+                |diff --git a/f.txt b/f.txt
+                |index 88d050b..9cc58b5 100644
+                |--- a/f.txt
+                |+++ b/f.txt
+                |@@ -1,1 +1,6 @@
+                |+<<<<<<< HEAD
+                | main
+                |+=======
+                |+topic
+                |+>>>>>>> topic
+                |+
+                """.trimMargin(),
+                arg,
+            )
+        }
+
+        @ParameterizedTest
+        @ValueSource(strings = ["--theirs", "-3"])
+        fun `show diff --theirs of a both modified change`(arg: String) {
+            createMergeConflictChanges()
+
+            assertDiff(
+                """
+                |* Unmerged path f.txt
+                |diff --git a/f.txt b/f.txt
+                |index b750dfc..9cc58b5 100644
+                |--- a/f.txt
+                |+++ b/f.txt
+                |@@ -1,1 +1,6 @@
+                |+<<<<<<< HEAD
+                |+main
+                |+=======
+                | topic
+                |+>>>>>>> topic
+                |+
+                """.trimMargin(),
+                arg,
+            )
         }
     }
 }

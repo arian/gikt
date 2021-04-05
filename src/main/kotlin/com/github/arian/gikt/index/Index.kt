@@ -212,7 +212,7 @@ class Index(pathname: Path) {
     private val impl = IndexImpl(pathname)
 
     interface Loaded {
-        operator fun get(key: String): Entry?
+        operator fun get(key: String, stage: Byte = 0): Entry?
         fun forEach(fn: (Entry) -> Unit)
         fun toList(): List<Entry>
         fun tracked(key: String): Boolean
@@ -221,7 +221,7 @@ class Index(pathname: Path) {
     }
 
     private class LoadedImpl(private val indexImpl: IndexImpl) : Loaded {
-        override operator fun get(key: String): Entry? = indexImpl.get(key)
+        override operator fun get(key: String, stage: Byte): Entry? = indexImpl.get(key, stage)
         override fun forEach(fn: (Entry) -> Unit) = indexImpl.forEach(fn)
         override fun toList(): List<Entry> = indexImpl.toList()
         override fun tracked(key: String): Boolean = indexImpl.tracked(key)
@@ -270,8 +270,8 @@ class Index(pathname: Path) {
         val lockfile = Lockfile(pathname)
         private var changed = false
 
-        fun get(key: String): Entry? =
-            entries[Entry.Key(key, 0)]
+        fun get(key: String, stage: Byte = 0): Entry? =
+            entries[Entry.Key(key, stage)]
 
         fun add(path: Path, oid: ObjectId, stat: FileStat) {
             require(!path.isAbsolute) { "Path should be relative to workspace path" }

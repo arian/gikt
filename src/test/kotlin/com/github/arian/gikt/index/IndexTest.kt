@@ -19,6 +19,7 @@ import com.github.arian.gikt.touch
 import com.github.arian.gikt.write
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -309,6 +310,34 @@ class IndexTest(private val fileSystemProvider: FileSystemExtension.FileSystemPr
         )
         assertTrue(loaded.tracked(rel("alice.txt")))
         assertTrue(loaded.hasConflicts())
+    }
+
+    @Test
+    fun `get specific stage entry`() {
+        val indexPath = workspacePath.resolve("index")
+        val index = Index(indexPath)
+
+        val oid1 = ObjectId("1234512345123451234512345123451234512341")
+        val oid2 = ObjectId("1234512345123451234512345123451234512342")
+        val oid3 = ObjectId("1234512345123451234512345123451234512343")
+
+        index.loadForUpdate {
+            addConflictSet(
+                rel("alice.txt"),
+                listOf(
+                    DbEntry(rel("alice.txt"), stat, oid1),
+                    DbEntry(rel("alice.txt"), stat, oid2),
+                    DbEntry(rel("alice.txt"), stat, oid3),
+                )
+            )
+            writeUpdates()
+        }
+
+        val loaded = index.load()
+        assertNull(loaded["alice.txt", 0])
+        assertEquals(oid1, loaded["alice.txt", 1]?.oid)
+        assertEquals(oid2, loaded["alice.txt", 2]?.oid)
+        assertEquals(oid3, loaded["alice.txt", 3]?.oid)
     }
 
     @Test
